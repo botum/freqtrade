@@ -13,6 +13,7 @@ from freqtrade.logger import Logger
 from freqtrade.persistence import Trade
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
+from freqtrade.indicators import get_trend_lines
 
 
 class SignalType(Enum):
@@ -66,6 +67,18 @@ class Analyze(object):
         """
         return self.strategy.populate_indicators(dataframe=dataframe)
 
+    def populate_trend_lines(self, dataframe: DataFrame, pair: str) -> DataFrame:
+        """
+        Adds several different TA indicators to the given DataFrame
+
+        Performance Note: For the best performance be frugal on the number of indicators
+        you are using. Let uncomment only the indicator you are using in your strategies
+        or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
+        """
+        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['trend_max'], dataframe['trend_min'] = get_trend_lines(pair, dataframe)
+
+        return dataframe
+
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
@@ -97,6 +110,7 @@ class Analyze(object):
         """
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
+        dataframe = self.populate_trend_lines(dataframe)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe

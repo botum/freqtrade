@@ -28,7 +28,8 @@ from sqlalchemy.orm.session import sessionmaker
 from sklearn.cluster import MeanShift, estimate_bandwidth
 
 from freqtrade.exchange import get_ticker_history
-from freqtrade.analyze import Analyze
+
+# from freqtrade.analyze import Analyze
 
 import scripts.trendy_2 as trendy
 
@@ -76,7 +77,7 @@ def get_trend_lines(pair: str, live_df: pd.DataFrame, timerange: int=600, interv
     #
     # window = len(dataframe)
     main_trends, main_maxslope, main_minslope = trendy.gentrends(live_df['close'], window=1/2, charts=charts)
-    
+
 
 #     df = live_df['close']
 #     print (len(dataframe))
