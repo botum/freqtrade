@@ -12,6 +12,7 @@ from freqtrade.indicators import in_range, find_pivots, went_down, get_trend_lin
 
 class_name = 'DefaultStrategy'
 
+pair = 'ETH/BTC'
 
 class DefaultStrategy(IStrategy):
     """
@@ -54,7 +55,7 @@ class DefaultStrategy(IStrategy):
     # Optimal ticker interval for the strategy
     ticker_interval = "1m"
 
-    def populate_cycle_trend(self, dataframe: DataFrame, pair: str) -> DataFrame:
+    def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
 
         dataframe['main_trend_max'], dataframe['main_trend_min'], main_maxslope, \
@@ -137,7 +138,7 @@ class DefaultStrategy(IStrategy):
         return dataframe
 
 
-    def populate_indicators(self, dataframe: DataFrame, pair: str, pivots: dict={}) -> DataFrame:
+    def populate_indicators(self, dataframe: DataFrame, pivots: dict={}) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -303,7 +304,7 @@ class DefaultStrategy(IStrategy):
         dataframe['ha_close'] = heikinashi['close']
         return dataframe
 
-    def populate_buy_trend(self, dataframe: DataFrame, pair: str) -> DataFrame:
+    def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
         """
         Based on TA indicators, populates the buy signal for the given dataframe
         :param dataframe: DataFrame
@@ -356,7 +357,7 @@ class DefaultStrategy(IStrategy):
             'buy'] = 1
         return dataframe
 
-    def populate_sell_trend(self, dataframe: DataFrame, pair: str) -> DataFrame:
+    def populate_sell_trend(self, dataframe: DataFrame) -> DataFrame:
         """
         Based on TA indicators, populates the sell signal for the given dataframe
         :param dataframe: DataFrame
@@ -394,25 +395,25 @@ class DefaultStrategy(IStrategy):
 
 
 
-    def did_bought(self, pair: str):
+    def did_bought(self):
         """
         we are notified that a given pair was bought
         :param pair: the pair that was is concerned by the dataframe
         """
 
-    def did_sold(self, pair: str):
+    def did_sold(self):
         """
         we are notified that a given pair was sold
         :param pair: the pair that was is concerned by the dataframe
         """
 
-    def did_cancel_buy(self, pair: str):
+    def did_cancel_buy(self):
         """
         we are notified that a given pair buy was not filled
         :param pair: the pair that was is concerned by the dataframe
         """
 
-    def did_cancel_sell(self, pair: str):
+    def did_cancel_sell(self):
         """
         we are notified that a given pair was not sold
         :param pair: the pair that was is concerned by the dataframe

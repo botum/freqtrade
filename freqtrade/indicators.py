@@ -60,22 +60,23 @@ def get_trend_lines(pair: str, live_df: pd.DataFrame, timerange: int=600, interv
     # segments = 3
     # x_maxima, maxima, x_minima, minima = trendy.segtrends(df['close'][:trend_range], segments = segments)
 
-    ticker_hist = get_ticker_history(pair, interval)
-    if not ticker_hist:
-        logger.warning('Empty ticker history for pair %s', pair)
-        return []  # return False ?
-
-    try:
-        dataframe = Analyze.parse_ticker_dataframe(ticker_hist)
-    except ValueError as ex:
-        logger.warning('Unable to analyze ticker for pair %s: %s', pair, str(ex))
-        return []  # return False ?
-    except Exception as ex:
-        logger.exception('Unexpected error when analyzing ticker for pair %s: %s', pair, str(ex))
-        return []  # return False ?
-
-    window = len(dataframe)
-    main_trends, main_maxslope, main_minslope = trendy.gentrends(dataframe['close'], window=1/2, charts=charts)
+    # ticker_hist = get_ticker_history(pair, interval)
+    # if not ticker_hist:
+    #     logger.warning('Empty ticker history for pair %s', pair)
+    #     return []  # return False ?
+    #
+    # try:
+    #     dataframe = Analyze.parse_ticker_dataframe(ticker_hist)
+    # except ValueError as ex:
+    #     logger.warning('Unable to analyze ticker for pair %s: %s', pair, str(ex))
+    #     return []  # return False ?
+    # except Exception as ex:
+    #     logger.exception('Unexpected error when analyzing ticker for pair %s: %s', pair, str(ex))
+    #     return []  # return False ?
+    #
+    # window = len(dataframe)
+    main_trends, main_maxslope, main_minslope = trendy.gentrends(live_df['close'], window=1/2, charts=charts)
+    
 
 #     df = live_df['close']
 #     print (len(dataframe))
