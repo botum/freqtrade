@@ -12,7 +12,7 @@ from freqtrade.indicators import in_range, find_pivots, went_down, get_trend_lin
 
 class_name = 'DefaultStrategy'
 
-pair = 'ETH/BTC'
+# pair = 'ETH/BTC'
 
 class DefaultStrategy(IStrategy):
     """
@@ -58,8 +58,8 @@ class DefaultStrategy(IStrategy):
     def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
 
-        dataframe['main_trend_max'], dataframe['main_trend_min'], main_maxslope, \
-        main_minslope = get_trend_lines(pair, dataframe, timerange=48, interval="60m")
+        # dataframe['main_trend_max'], dataframe['main_trend_min'], main_maxslope, \
+        # main_minslope = get_trend_lines(pair, dataframe, timerange=48, interval="60m")
         # dataframe['trend_max'], dataframe['trend_min'], \
         # short_maxslope, short_minslope
 
@@ -204,8 +204,8 @@ class DefaultStrategy(IStrategy):
         # print (dataframe['sr'], "sr002.py")
 
 
-        dataframe['main_trend_max'], dataframe['main_trend_min'], main_maxslope, \
-        main_minslope = get_trend_lines(pair, dataframe, charts=True, interval="30m", timerange=200)
+        # dataframe['main_trend_max'], dataframe['main_trend_min'], main_maxslope, \
+        # main_minslope = get_trend_lines(pair, dataframe, charts=True, interval="30m", timerange=200)
 
         # print ( main_maxslope, main_minslope, short_maxslope, short_minslope)
         # print (dataframe['trend_min'])

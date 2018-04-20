@@ -14,6 +14,8 @@ from freqtrade.persistence import Trade
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
 from freqtrade.indicators import get_trend_lines
+from scripts import trendy_2 as trendy
+
 
 
 class SignalType(Enum):
@@ -75,9 +77,11 @@ class Analyze(object):
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
-        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['trend_max'], dataframe['trend_min'] = get_trend_lines(pair, dataframe)
+        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(pair, dataframe)
 
-        return dataframe
+        trends_x_max, trends_max, trends_x_min, trends_min = trendy.segtrends(dataframe.close, segments = 10, charts = True)
+
+        return dataframe, trends_x_max, trends_max, trends_x_min, trends_min
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
         """
@@ -102,7 +106,7 @@ class Analyze(object):
         """
         return self.strategy.ticker_interval
 
-    def analyze_ticker(self, ticker_history: List[Dict]) -> DataFrame:
+    def analyze_ticker(self, ticker_history: List[Dict], pair: str) -> DataFrame:
         """
         Parses the given ticker history and returns a populated DataFrame
         add several TA indicators and buy signal to it
@@ -110,7 +114,7 @@ class Analyze(object):
         """
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
-        dataframe = self.populate_trend_lines(dataframe)
+        dataframe = self.populate_trend_lines(dataframe, pair)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe
@@ -128,7 +132,7 @@ class Analyze(object):
             return False, False
 
         try:
-            dataframe = self.analyze_ticker(ticker_hist)
+            dataframe = self.analyze_ticker(ticker_hist, pair)
         except ValueError as error:
             self.logger.warning(
                 'Unable to analyze ticker for pair %s: %s',
