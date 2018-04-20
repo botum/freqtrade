@@ -13,17 +13,17 @@
         "key": "6329e82417464d3695d3770f646278df",
         "secret": "55102b4526194eddb13d0529cf79ab45",
         "pair_whitelist": [
-          "BTC_ZCL"
+          "ZCL/BTC"
         ],
         "pair_blacklist": [
-            "BTC_DOGE"
+            "DOGE/BTC"
         ]
     },
     "whaleclub_whitelist": [
-        "BTC_ETH",
-        "BTC_LTC",
-        "BTC_DASH",
-        "BTC_XMR"
+        "ETH/BTC",
+        "LTC/BTC",
+        "DASH/BTC",
+        "XMR/BTC"
     ],
     "experimental": {
         "use_sell_signal": true,
