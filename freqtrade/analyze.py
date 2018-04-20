@@ -79,9 +79,7 @@ class Analyze(object):
         """
         dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(pair, dataframe)
 
-        trends_x_max, trends_max, trends_x_min, trends_min = trendy.segtrends(dataframe.close, segments = 10, charts = True)
-
-        return dataframe, trends_x_max, trends_max, trends_x_min, trends_min
+        return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
         """

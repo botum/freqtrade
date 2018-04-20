@@ -37,6 +37,7 @@ class Backtesting(object):
         self.analyze = None
         self.ticker_interval = None
         self.tickerdata_to_dataframe = None
+        self.populate_trend_lines = None
         self.populate_buy_trend = None
         self.populate_sell_trend = None
         self._init()
@@ -49,6 +50,7 @@ class Backtesting(object):
         self.analyze = Analyze(self.config)
         self.ticker_interval = self.analyze.strategy.ticker_interval
         self.tickerdata_to_dataframe = self.analyze.tickerdata_to_dataframe
+        self.populate_trend_lines = self.analyze.populate_trend_lines
         self.populate_buy_trend = self.analyze.populate_buy_trend
         self.populate_sell_trend = self.analyze.populate_sell_trend
 
@@ -159,7 +161,7 @@ class Backtesting(object):
             use_sell_signal: act on sell-signal
         :return: DataFrame
         """
-        headers = ['date', 'buy', 'open', 'close', 'sell']
+        headers = ['date', 'buy', 'open', 'close', 'sell', 'main_trend_max', 'main_trend_min', 'main_trend_max_slope', 'main_trend_min_slope']
         processed = args['processed']
         max_open_trades = args.get('max_open_trades', 0)
         realistic = args.get('realistic', False)
@@ -170,7 +172,7 @@ class Backtesting(object):
         for pair, pair_data in processed.items():
             pair_data['buy'], pair_data['sell'] = 0, 0  # cleanup from previous run
 
-            ticker_data = self.populate_sell_trend(self.populate_buy_trend(pair_data))[headers]
+            ticker_data = self.populate_sell_trend(self.populate_buy_trend(self.populate_trend_lines(pair_data, pair)))[headers]
             ticker = [x for x in ticker_data.itertuples()]
 
             lock_pair_until = None
