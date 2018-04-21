@@ -56,7 +56,7 @@ def in_range(x, target, percent):
 # def find_pivots(pair: str, interval: int=1, type: str='piv') -> pd.DataFrame:
     # return ''
 
-def get_trend_lines(pair: str, live_df: pd.DataFrame, timerange: int=600, interval: str="1h", charts: bool=False) -> pd.DataFrame:
+def get_trend_lines(pair: str, live_df: pd.DataFrame, timerange: int=600, interval: str="1h", charts: bool=True) -> pd.DataFrame:
     # trend_range = len(dataframe)
     # segments = 3
     # x_maxima, maxima, x_minima, minima = trendy.segtrends(df['close'][:trend_range], segments = segments)

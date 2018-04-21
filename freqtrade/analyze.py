@@ -77,8 +77,31 @@ class Analyze(object):
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
-        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(pair, dataframe)
+        dataframe['short_trend_max'], dataframe['short_trend_min'], dataframe['short_trend_max_slope'], dataframe['short_trend_min_slope'] = get_trend_lines(pair, dataframe)
 
+
+        # short time trends
+
+        df60 = DataFrame
+        interval = "1m"
+        ticker_hist = get_ticker_history(pair, interval)
+        if not ticker_hist:
+            self.logger.warning('Empty ticker history for pair %s, interval: %s', pair, interval)
+        try:
+            df60 = self.analyze_ticker(ticker_hist, pair)
+        except ValueError as error:
+            self.logger.warning(
+                'Unable to analyze ticker for pair %s: %s',
+                pair,
+                str(error)
+            )
+
+        if df60.empty:
+            self.logger.warning('Empty df60 for pair %s, interval: %s', pair, interval)
+
+        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(pair, df60)
+
+        # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
@@ -124,6 +147,7 @@ class Analyze(object):
         :param interval: Interval to use (in min)
         :return: (Buy, Sell) A bool-tuple indicating buy/sell signal
         """
+        print('interval : ',interval)
         ticker_hist = get_ticker_history(pair, interval)
         if not ticker_hist:
             self.logger.warning('Empty ticker history for pair %s', pair)
