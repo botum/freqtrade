@@ -13,8 +13,7 @@ from freqtrade.logger import Logger
 from freqtrade.persistence import Trade
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
-from freqtrade.indicators import get_trend_lines
-from scripts import trendy_2 as trendy
+from freqtrade.indicators import get_trend_lines, get_pivots
 
 
 
@@ -77,31 +76,47 @@ class Analyze(object):
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
-        dataframe['short_trend_max'], dataframe['short_trend_min'], dataframe['short_trend_max_slope'], dataframe['short_trend_min_slope'] = get_trend_lines(pair, dataframe)
+        # dataframe['short_trend_max'], dataframe['short_trend_min'], dataframe['short_trend_max_slope'], dataframe['short_trend_min_slope'] = get_trend_lines(pair, dataframe)
+        #
+        #
+        # # short time trends
+        #
+        # df60 = DataFrame
+        # interval = "1m"
+        # ticker_hist = get_ticker_history(pair, interval)
+        # if not ticker_hist:
+        #     self.logger.warning('Empty ticker history for pair %s, interval: %s', pair, interval)
+        # try:
+        #     df60 = self.analyze_ticker(ticker_hist, pair)
+        # except ValueError as error:
+        #     self.logger.warning(
+        #         'Unable to analyze ticker for pair %s: %s',
+        #         pair,
+        #         str(error)
+        #     )
+        #
+        # if df60.empty:
+        #     self.logger.warning('Empty df60 for pair %s, interval: %s', pair, interval)
 
-
-        # short time trends
-
-        df60 = DataFrame
-        interval = "1m"
-        ticker_hist = get_ticker_history(pair, interval)
-        if not ticker_hist:
-            self.logger.warning('Empty ticker history for pair %s, interval: %s', pair, interval)
-        try:
-            df60 = self.analyze_ticker(ticker_hist, pair)
-        except ValueError as error:
-            self.logger.warning(
-                'Unable to analyze ticker for pair %s: %s',
-                pair,
-                str(error)
-            )
-
-        if df60.empty:
-            self.logger.warning('Empty df60 for pair %s, interval: %s', pair, interval)
-
-        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(pair, df60)
+        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
 
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
+        return dataframe
+
+    def populate_pivots(self, dataframe: DataFrame, pair: str) -> DataFrame:
+        """
+        Adds several different TA indicators to the given DataFrame
+
+        Performance Note: For the best performance be frugal on the number of indicators
+        you are using. Let uncomment only the indicator you are using in your strategies
+        or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
+        """
+        print (dataframe)
+
+        dataframe = get_pivots(dataframe, pair, piv_type='res')
+        dataframe = get_pivots(dataframe, pair, piv_type='sup')
+        # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
+        print (dataframe)
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
@@ -135,6 +150,7 @@ class Analyze(object):
         """
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
+        dataframe = self.populate_pivots(dataframe, pair)
         dataframe = self.populate_trend_lines(dataframe, pair)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)

@@ -31,7 +31,7 @@ from freqtrade.exchange import get_ticker_history
 
 # from freqtrade.analyze import Analyze
 
-import scripts.trendy_2 as trendy
+import scripts.cactix as trendy
 
 from pandas import Series
 
@@ -56,7 +56,7 @@ def in_range(x, target, percent):
 # def find_pivots(pair: str, interval: int=1, type: str='piv') -> pd.DataFrame:
     # return ''
 
-def get_trend_lines(pair: str, live_df: pd.DataFrame, timerange: int=600, interval: str="1h", charts: bool=True) -> pd.DataFrame:
+def get_trend_lines(live_df: pd.DataFrame, pair: str, timerange: int=600, interval: str="1h", charts: bool=False) -> pd.DataFrame:
     # trend_range = len(dataframe)
     # segments = 3
     # x_maxima, maxima, x_minima, minima = trendy.segtrends(df['close'][:trend_range], segments = segments)
@@ -127,11 +127,11 @@ def bruno_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFram
     elif piv_type == 'res':
         df = df[(df['volume'] > df['volume'].rolling(window=10).mean() & df['close'] > df['open'])]
 
-def find_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame:
+def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame:
     # print ('find_pivots')
 
     quantile = 0.01
-    cols = ['close']
+    cols = ['low', 'high']
     gap = 1.01
 
 
@@ -146,34 +146,34 @@ def find_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame
         gap = 0.96
         interval = 1
 
-    if 'USDT' in pair:
-        if piv_type == 'sup':
-            quantile = 0.01
-            cols = ['low', 'high']
-            gap = 1.05
-            interval = 60
-        elif piv_type == 'res':
-            quantile = 0.01
-            cols = ['high', 'low']
-            gap = 0.95
-            interval = 1
+    # if 'USDT' in pair:
+    #     if piv_type == 'sup':
+    #         quantile = 0.01
+    #         cols = ['low', 'high']
+    #         gap = 1.05
+    #         interval = 60
+    #     elif piv_type == 'res':
+    #         quantile = 0.01
+    #         cols = ['high', 'low']
+    #         gap = 0.95
+    #         interval = 1
 
-    ticker_hist = get_ticker_history(pair, interval)
-    if not ticker_hist:
-        logger.warning('Empty ticker history for pair %s', pair)
-        return []  # return False ?
-
-    try:
-        dataframe = parse_ticker_dataframe(ticker_hist)
-    except ValueError as ex:
-        logger.warning('Unable to analyze ticker for pair %s: %s', pair, str(ex))
-        return []  # return False ?
-    except Exception as ex:
-        logger.exception('Unexpected error when analyzing ticker for pair %s: %s', pair, str(ex))
-        return []  # return False ?
-
-    df = dataframe
-    print ('len df: ', len(df))
+    # ticker_hist = get_ticker_history(pair, interval)
+    # if not ticker_hist:
+    #     logger.warning('Empty ticker history for pair %s', pair)
+    #     return []  # return False ?
+    #
+    # try:
+    #     dataframe = parse_ticker_dataframe(ticker_hist)
+    # except ValueError as ex:
+    #     logger.warning('Unable to analyze ticker for pair %s: %s', pair, str(ex))
+    #     return []  # return False ?
+    # except Exception as ex:
+    #     logger.exception('Unexpected error when analyzing ticker for pair %s: %s', pair, str(ex))
+    #     return []  # return False ?
+    #
+    # df = dataframe
+    # print ('len df: ', len(df))
     # print ('quantile: ', quantile, type(quantile))
     # print ('bandwidth: ', int(len(df)) * quantile)
 
@@ -192,12 +192,12 @@ def find_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame
     # print ('len df: ', len(df))
     samples = len(df)
 
-    # print(len(dataframe) * quantile)
-    if dataframe.empty:
+    # print(len(df) * quantile)
+    if df.empty:
         logger.warning('Empty dataframe for pair %s', pair)
         return []  # return False ?
-    elif not len(dataframe) * quantile > 1:
-        print('dataframe too short: ', len(dataframe))
+    elif not len(df) * quantile > 1:
+        print('dataframe too short: ', len(df))
         samples = len(df) * 0.1
     # df = df[(df['volume'] > df['volume'].rolling(window=10).mean())]
 
@@ -334,8 +334,55 @@ def find_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame
     #             pivots.append(min(values))
     #             pivots.append(max(values))
 
-
-    return sorted(pivots)
+    pivots = sorted(pivots)
+    # print (pivots)
+    if pivots and len(pivots) > 0:
+        def set_sup(row):
+            print (row)
+            supports = sorted(pivots['sup'], reverse=True)
+            # print (pivots['sup'])
+            for sup in supports:
+                # print ('sup: ', sup, 'low: ', row['low'])
+                # print (row["low"] >= sup * 0.98)
+                if row["low"] >= sup:
+                    # print ('bingo: ', sup)
+                    return sup
+        def set_sup2(row):
+            # print (row)
+            # print (pivots['sup'])
+            supports = sorted(pivots['sup'], reverse=True)
+            for sup in supports:
+                # print ('sup: ', sup, 'low: ', row['low'])
+                # print (row["low"] >= sup * 0.98)
+                if row["low"] >= sup and sup < row['s1'] :
+                    # print ('bingo: ', sup)
+                    return sup
+        def set_res(row):
+            resistences = sorted(pivots['res'])
+            # resistences.append(pivots['sup'])
+            for res in resistences:
+                # print ('res: ', row["s1"] * 1.01, res)
+                #  and res >= row["s1"] * 1.02
+                if row["high"] <= res and res >= row["s1"] * 1.02:
+                    return res
+        def set_res2(row):
+            resistences = sorted(pivots['res'])
+            # resistences.append(pivots['sup'])
+            for res in resistences:
+                # print ('res: ', row["s1"] * 1.01, res)
+                if row["high"] <= res and row["r1"] < res and res >= row["s1"] * 1.02:
+                    return res
+        df = df.assign(s1=df.apply(set_sup, axis=1))
+        df = df.assign(s2=df.apply(set_sup2, axis=1))
+        df = df.assign(r1=df.apply(set_res, axis=1))
+        df = df.assign(r2=df.apply(set_res2, axis=1))
+    else:
+        df['s1'] = 0
+        df['r1'] = 0
+        df['s2'] = 0
+        df['r2'] = 0
+        
+    return df
 
 def find_support_resistance(dataframe: pd.DataFrame, quantile: int, samples: int) -> pd.DataFrame:
 

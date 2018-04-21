@@ -5,7 +5,7 @@ from pandas import DataFrame
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 from freqtrade.strategy.interface import IStrategy
 # from scripts import trendy
-from freqtrade.indicators import in_range, find_pivots, went_down, get_trend_lines
+from freqtrade.indicators import in_range, went_down, get_trend_lines, get_pivots
 # from freqtrade.persistence import Pair
 
 # from freqtrade.persistence import *
@@ -39,7 +39,7 @@ class DefaultStrategy(IStrategy):
         # "4":  0.007,
         # "3":  0.008,
         # "2":  0.009,
-        # "0":  0.01,
+        # "0":  0.02,
         # "2":  0.03,
         # "1":  0.04,
         # "0":  0.05
@@ -154,51 +154,6 @@ class DefaultStrategy(IStrategy):
         # dataframe['xMax'], dataframe['yMax'], dataframe['xMin'], dataframe['yMin'] = trendy.minitrends(dataframe['close'], window = 30)
         #
         # print (pivots)
-        if pivots and len(pivots) > 0:
-            def set_sup(row):
-                # print (row)
-                supports = sorted(pivots['sup'], reverse=True)
-                # print (pivots['sup'])
-                for sup in supports:
-                    # print ('sup: ', sup, 'low: ', row['low'])
-                    # print (row["low"] >= sup * 0.98)
-                    if row["low"] >= sup:
-                        # print ('bingo: ', sup)
-                        return sup
-            def set_sup2(row):
-                # print (row)
-                # print (pivots['sup'])
-                supports = sorted(pivots['sup'], reverse=True)
-                for sup in supports:
-                    # print ('sup: ', sup, 'low: ', row['low'])
-                    # print (row["low"] >= sup * 0.98)
-                    if row["low"] >= sup and sup < row['s1'] :
-                        # print ('bingo: ', sup)
-                        return sup
-            def set_res(row):
-                resistences = sorted(pivots['res'])
-                # resistences.append(pivots['sup'])
-                for res in resistences:
-                    # print ('res: ', row["s1"] * 1.01, res)
-                    #  and res >= row["s1"] * 1.02
-                    if row["high"] <= res and res >= row["s1"] * 1.02:
-                        return res
-            def set_res2(row):
-                resistences = sorted(pivots['res'])
-                # resistences.append(pivots['sup'])
-                for res in resistences:
-                    # print ('res: ', row["s1"] * 1.01, res)
-                    if row["high"] <= res and row["r1"] < res and res >= row["s1"] * 1.02:
-                        return res
-            dataframe = dataframe.assign(s1=dataframe.apply(set_sup, axis=1))
-            dataframe = dataframe.assign(s2=dataframe.apply(set_sup2, axis=1))
-            dataframe = dataframe.assign(r1=dataframe.apply(set_res, axis=1))
-            dataframe = dataframe.assign(r2=dataframe.apply(set_res2, axis=1))
-        else:
-            dataframe['s1'] = 0
-            dataframe['r1'] = 0
-            dataframe['s2'] = 0
-            dataframe['r2'] = 0
 
 
         # print (dataframe['sr'], "sr002.py")
@@ -320,7 +275,7 @@ class DefaultStrategy(IStrategy):
                 (
                 # (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
                 # |
-                (dataframe['low'] < dataframe['main_trend_min'] * 1.01)
+                (dataframe['low'] < dataframe['main_trend_min'])
                 )
                 # &
                 # (
@@ -369,8 +324,8 @@ class DefaultStrategy(IStrategy):
                 # |
                 (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
                 |
-                (dataframe['close'] >= dataframe['r2'] * 0.999)
-                |
+                # (dataframe['close'] >= dataframe['r2'] * 0.999)
+                # |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
 

@@ -32,7 +32,7 @@ def gentrends(x, window=1/3.0, charts=True, pair='default_filename_plot'):
     import numpy as np
 
     x = np.array(x)
-
+    # print(x)
     if window < 1:
         window = int(window * len(x))
 
@@ -129,7 +129,7 @@ def segtrends(x, segments=2, charts=True, momentum=False):
         a_min = minima[i] - (minslope * x_minima[i])
         b_min = minima[i] + (minslope * (len(y) - x_minima[i]))
         minline = np.linspace(a_min, b_min, len(y))
-        print (np.array((x, maxline, minline)))
+        # print (np.array((x, maxline, minline)))
         # trends[x_maxima[i]]= np.transpose(np.array((x, maxline, minline)))
 
         if charts:

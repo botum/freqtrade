@@ -27,7 +27,7 @@ from freqtrade import exchange
 from freqtrade.logger import Logger
 import freqtrade.optimize as optimize
 from freqtrade.indicators import get_trend_lines
-from scripts import trendy_2 as trendy
+from scripts import cactix as trendy
 import numpy as np
 
 
@@ -72,6 +72,7 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
     dataframes = analyze.tickerdata_to_dataframe(tickers)
     dataframe = dataframes[pair]
     dataframe = analyze.populate_trend_lines(dataframe, pair)
+    dataframe = analyze.populate_pivots(dataframe, pair)
     dataframe = analyze.populate_buy_trend(dataframe)
     df = dataframe = analyze.populate_sell_trend(dataframe)
 
@@ -178,22 +179,22 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
     # print(trends_x_max.tolist())
     # print(list(df.date[df.index.isin(trends_x_max)]))
     #
-#     fig.append_trace(go.Scatter(
-#         x = list(df.date[df.index.isin(trends_x_max)]),
-#         y = trends_max.tolist(),
-#         line = dict(color = 'black'),
-#         mode = 'line',
-#         name = 'trend max'
-#     ), 1, 1)
-#     fig.append_trace(go.Scatter(
-#         x = list(df.date[df.index.isin(trends_x_min)]),
-#         y = trends_min.tolist(),
-#         line = dict(color = 'black'),
-#         mode = 'line',
-#         name = 'trend min'
-#     ), 1, 1)
+    fig.append_trace(go.Scatter(
+        x = list(df.date[df.index.isin(trends_x_max)]),
+        y = trends_max.tolist(),
+        line = dict(color = 'black'),
+        mode = 'line',
+        name = 'trend max'
+    ), 1, 1)
+    fig.append_trace(go.Scatter(
+        x = list(df.date[df.index.isin(trends_x_min)]),
+        y = trends_min.tolist(),
+        line = dict(color = 'black'),
+        mode = 'line',
+        name = 'trend min'
+    ), 1, 1)
 
-    print (df.main_trend_max.iloc[-1])
+    # print (df.main_trend_max.iloc[-1])
 
     fig.append_trace(go.Scatter(
         x = [df.date.iloc[0], df.date.iloc[-1]],
