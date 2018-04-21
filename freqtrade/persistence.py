@@ -15,6 +15,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlalchemy_utils import ScalarListType
+
+from freqtrade.exchange import get_ticker_history
+
+from freqtrade.indicators import get_pivots
 
 logger = logging.getLogger(__name__)
 
@@ -219,3 +224,87 @@ class Trade(_DECL_BASE):
         )
 
         return float("{0:.8f}".format((close_trade_price / open_trade_price) - 1))
+
+class Pair(_DECL_BASE):
+    __tablename__ = 'pairs'
+
+    id = Column(Integer, primary_key=True)
+    pair = Column(String, nullable=False)
+    exchange = Column(String, nullable=True)
+    trading = Column(Boolean, nullable=True, default=True)
+    last_rate = Column(Float, default=0)
+    supports = Column(ScalarListType, nullable=True)
+    resistences = Column(ScalarListType, nullable=True)
+    pivots_update_date = Column(DateTime, default=None)
+
+    def __repr__(self):
+        return 'Pair(pair={}, rate={:.8f}, sup={}, res={})'.format(
+            self.pair,
+            self.last_rate,
+            str(self.supports),
+            str(self.resistences)
+        )
+
+
+    def get_trend(self) -> list:
+        trend = get_trend(self.pair, 60)
+        return trend
+
+    def get_pivots(self) -> list:
+        # Check if is time to update pivots
+        # return self.update_pivots()
+        if self.pivots_update_date:
+            if self.pivots_update_date < datetime.utcnow() - timedelta(minutes=(30)):
+                logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
+                               self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
+                # print ('update pivots: ', self.pivots)
+                return self.update_pivots()
+            else:
+                pivots = {'sup': self.supports,
+                            'res': self.resistences}
+                return pivots
+        else:
+            return self.update_pivots()
+
+    def update_pivots(self) -> list:
+        """
+        Updates this entity with amount and actual open/close rates.
+        :param order: order retrieved by exchange.get_order()
+        :return: None
+        """
+
+        logger.info('Updating pair %s ...', self.pair)
+
+        getcontext().prec = 8  # Bittrex do not go above 8 decimal
+
+        # print (df)
+        supports = get_pivots(self.pair, piv_type='sup')
+        resistences = get_pivots(self.pair, piv_type='res')
+        pivots = {'sup': supports,
+                    'res': resistences}
+        # print (pivots)
+        self.supports = supports
+        self.resistences = resistences
+        self.pivot_update_date = datetime.utcnow()
+
+    #
+    #     # def set_pivots(row):
+    #     #     for p in pivots:
+    #     #         if row["low"] > p:
+    #     #             return p
+    #     # df.assign(p1=dataframe.apply(set_pivots, axis=1))
+    #     #
+    #     # def set_sup(row):
+    #     #     for sup in piv_clean:
+    #     #         if row["low"] > sup:
+    #     #             return sup
+    #     # def set_res(row):
+    #     #     for res in piv_clean:
+    #     #         if row["high"] < res:
+    #     #             return res
+    #     # #
+    #     # dataframe = dataframe.assign(s1=dataframe.apply(set_sup, axis=1))
+    #     # dataframe = dataframe.assign(r1=dataframe.apply(set_res, axis=1))
+    #
+        cleanup()
+        return pivots
