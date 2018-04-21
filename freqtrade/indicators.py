@@ -234,7 +234,7 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     # print ("count pivots:", len(pivots))
 
     pivots = sorted(pivots)
-    # print ("pivots:", pivots)
+    print ("pivots:", pivots)
     # print (piv_type)
     piv_clean = []
     if piv_type == 'sup':
@@ -336,52 +336,46 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
 
     pivots = sorted(pivots)
     # print (pivots)
-    if pivots and len(pivots) > 0:
-        def set_sup(row):
-            print (row)
-            supports = sorted(pivots['sup'], reverse=True)
-            # print (pivots['sup'])
-            for sup in supports:
-                # print ('sup: ', sup, 'low: ', row['low'])
-                # print (row["low"] >= sup * 0.98)
-                if row["low"] >= sup:
-                    # print ('bingo: ', sup)
-                    return sup
-        def set_sup2(row):
-            # print (row)
-            # print (pivots['sup'])
-            supports = sorted(pivots['sup'], reverse=True)
-            for sup in supports:
-                # print ('sup: ', sup, 'low: ', row['low'])
-                # print (row["low"] >= sup * 0.98)
-                if row["low"] >= sup and sup < row['s1'] :
-                    # print ('bingo: ', sup)
-                    return sup
-        def set_res(row):
-            resistences = sorted(pivots['res'])
-            # resistences.append(pivots['sup'])
-            for res in resistences:
-                # print ('res: ', row["s1"] * 1.01, res)
-                #  and res >= row["s1"] * 1.02
-                if row["high"] <= res and res >= row["s1"] * 1.02:
-                    return res
-        def set_res2(row):
-            resistences = sorted(pivots['res'])
-            # resistences.append(pivots['sup'])
-            for res in resistences:
-                # print ('res: ', row["s1"] * 1.01, res)
-                if row["high"] <= res and row["r1"] < res and res >= row["s1"] * 1.02:
-                    return res
-        df = df.assign(s1=df.apply(set_sup, axis=1))
-        df = df.assign(s2=df.apply(set_sup2, axis=1))
-        df = df.assign(r1=df.apply(set_res, axis=1))
-        df = df.assign(r2=df.apply(set_res2, axis=1))
-    else:
-        df['s1'] = 0
-        df['r1'] = 0
-        df['s2'] = 0
-        df['r2'] = 0
-        
+    def set_sup(row):
+        print (row)
+        supports = sorted(pivots['sup'], reverse=True)
+        # print (pivots['sup'])
+        for sup in supports:
+            # print ('sup: ', sup, 'low: ', row['low'])
+            # print (row["low"] >= sup * 0.98)
+            if row["low"] >= sup:
+                # print ('bingo: ', sup)
+                return sup
+    def set_sup2(row):
+        # print (row)
+        # print (pivots['sup'])
+        supports = sorted(pivots['sup'], reverse=True)
+        for sup in supports:
+            # print ('sup: ', sup, 'low: ', row['low'])
+            # print (row["low"] >= sup * 0.98)
+            if row["low"] >= sup and sup < row['s1'] :
+                # print ('bingo: ', sup)
+                return sup
+    def set_res(row):
+        resistences = sorted(pivots['res'])
+        # resistences.append(pivots['sup'])
+        for res in resistences:
+            # print ('res: ', row["s1"] * 1.01, res)
+            #  and res >= row["s1"] * 1.02
+            if row["high"] <= res and res >= row["s1"] * 1.02:
+                return res
+    def set_res2(row):
+        resistences = sorted(pivots['res'])
+        # resistences.append(pivots['sup'])
+        for res in resistences:
+            # print ('res: ', row["s1"] * 1.01, res)
+            if row["high"] <= res and row["r1"] < res and res >= row["s1"] * 1.02:
+                return res
+    df = df.assign(s1=df.apply(set_sup, axis=1))
+    df = df.assign(s2=df.apply(set_sup2, axis=1))
+    df = df.assign(r1=df.apply(set_res, axis=1))
+    df = df.assign(r2=df.apply(set_res2, axis=1))
+    
     return df
 
 def find_support_resistance(dataframe: pd.DataFrame, quantile: int, samples: int) -> pd.DataFrame:
