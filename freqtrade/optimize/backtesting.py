@@ -38,6 +38,7 @@ class Backtesting(object):
         self.ticker_interval = None
         self.tickerdata_to_dataframe = None
         self.populate_trend_lines = None
+        self.populate_pivots = None
         self.populate_buy_trend = None
         self.populate_sell_trend = None
         self._init()
@@ -51,6 +52,7 @@ class Backtesting(object):
         self.ticker_interval = self.analyze.strategy.ticker_interval
         self.tickerdata_to_dataframe = self.analyze.tickerdata_to_dataframe
         self.populate_trend_lines = self.analyze.populate_trend_lines
+        self.populate_pivots = self.analyze.populate_pivots
         self.populate_buy_trend = self.analyze.populate_buy_trend
         self.populate_sell_trend = self.analyze.populate_sell_trend
 
@@ -172,7 +174,7 @@ class Backtesting(object):
         for pair, pair_data in processed.items():
             pair_data['buy'], pair_data['sell'] = 0, 0  # cleanup from previous run
 
-            ticker_data = self.populate_sell_trend(self.populate_buy_trend(self.populate_trend_lines(self.populate_trend_pivots(pair_data, pair))))[headers]
+            ticker_data = self.populate_sell_trend(self.populate_buy_trend(self.populate_trend_lines(self.populate_pivots(pair_data, pair), pair)))[headers]
             ticker = [x for x in ticker_data.itertuples()]
 
             lock_pair_until = None

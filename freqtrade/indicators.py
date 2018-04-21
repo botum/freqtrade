@@ -234,37 +234,83 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     # print ("count pivots:", len(pivots))
 
     pivots = sorted(pivots)
-    print ("pivots:", pivots)
+    # print ("pivots:", pivots)
     # print (piv_type)
-    piv_clean = []
+    piv_clean = {}
+
+    # create supports
+
+    # print ('first item: ', pivots[0])
+    # print (pivots)
     if piv_type == 'sup':
-        # print ('first item: ', pivots[0])
-        # print (pivots)
-        piv_clean.append(pivots[0])
+        supports = []
+        supports.append(pivots[0])
         for i in range(1, len(pivots)):
             # print ('for: ', i, pivots[i])
             # print ('for: ', i, piv_clean[-1] * gap)
-            if pivots[i] >= (piv_clean[-1] * gap):
+            if pivots[i] >= (supports[-1] * gap):
                 # print (pivots[i])
-                piv_clean.append(pivots[i])
-            # print ('piv_clean: ', piv_clean)
-        pivots = piv_clean
-    elif piv_type == 'res':
-        pivots = sorted(pivots, reverse=True)
-        piv_clean.append(pivots[0])
+                supports.append(pivots[i])
+            # print ('supports: ', supports)
+        piv_clean['sup'] = supports
+        def set_sup(row):
+            # print (row)
+            supports = sorted(piv_clean['sup'], reverse=True)
+            # print (piv_clean['sup'])
+            for sup in supports:
+                # print ('sup: ', sup, 'low: ', row['low'])
+                # print (row["low"] >= sup * 0.98)
+                if row["low"] >= sup:
+                    # print ('bingo: ', sup)
+                    return sup
+        def set_sup2(row):
+            # print (row)
+            # print (piv_clean['sup'])
+            supports = sorted(piv_clean['sup'], reverse=True)
+            for sup in supports:
+                # print ('sup: ', sup, 'low: ', row['low'])
+                # print (row["low"] >= sup * 0.98)
+                if row["low"] >= sup and sup < row['s1'] :
+                    # print ('bingo: ', sup)
+                    return sup
+        df = df.assign(s1=df.apply(set_sup, axis=1))
+        df = df.assign(s2=df.apply(set_sup2, axis=1))
+
+    # create resistances
+
+    if piv_type == 'res':
+        resistances = sorted(pivots, reverse=True)
+        resistances.append(pivots[0])
         # print (piv_clean[-1])
         # print (pivots)
         # print ('first item: ', pivots[0])
         # print ('last item: ', pivots[-1])
         for i in range(1, len(pivots)):
-            # print('last piv_clean', piv_clean[-1] * gap)
+            # print('last piv_clean', resistances[-1] * gap)
             # print('current pivot', pivots[i])
             # if i == 1:
-                # print ('iter 1', piv_clean[-i])
-            if pivots[i] <= (piv_clean[-1] * gap):
-                piv_clean.append(pivots[i])
+                # print ('iter 1', resistances[-i])
+            if pivots[i] <= (resistances[-1] * gap):
+                resistances.append(pivots[i])
                 # print('added', pivots[i])
-        pivots = piv_clean
+        piv_clean['res'] = resistances
+        def set_res(row):
+            res = sorted(piv_clean['res'])
+            # res.append(piv_clean['sup'])
+            for r in res:
+                # print ('res: ', row["s1"] * 1.01, res)
+                #  and res >= row["s1"] * 1.02
+                if row["high"] <= r and r >= row["s1"] * 1.02:
+                    return r
+        def set_res2(row):
+            res = sorted(piv_clean['res'])
+            # res.append(piv_clean['sup'])
+            for r in res:
+                # print ('res: ', row["s1"] * 1.01, res)
+                if row["high"] <= r and row["r1"] < r and r >= row["s1"] * 1.02:
+                    return r
+        df = df.assign(r1=df.apply(set_res, axis=1))
+        df = df.assign(r2=df.apply(set_res2, axis=1))
 
     # print (pivots)
 
@@ -334,48 +380,8 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     #             pivots.append(min(values))
     #             pivots.append(max(values))
 
-    pivots = sorted(pivots)
     # print (pivots)
-    def set_sup(row):
-        print (row)
-        supports = sorted(pivots['sup'], reverse=True)
-        # print (pivots['sup'])
-        for sup in supports:
-            # print ('sup: ', sup, 'low: ', row['low'])
-            # print (row["low"] >= sup * 0.98)
-            if row["low"] >= sup:
-                # print ('bingo: ', sup)
-                return sup
-    def set_sup2(row):
-        # print (row)
-        # print (pivots['sup'])
-        supports = sorted(pivots['sup'], reverse=True)
-        for sup in supports:
-            # print ('sup: ', sup, 'low: ', row['low'])
-            # print (row["low"] >= sup * 0.98)
-            if row["low"] >= sup and sup < row['s1'] :
-                # print ('bingo: ', sup)
-                return sup
-    def set_res(row):
-        resistences = sorted(pivots['res'])
-        # resistences.append(pivots['sup'])
-        for res in resistences:
-            # print ('res: ', row["s1"] * 1.01, res)
-            #  and res >= row["s1"] * 1.02
-            if row["high"] <= res and res >= row["s1"] * 1.02:
-                return res
-    def set_res2(row):
-        resistences = sorted(pivots['res'])
-        # resistences.append(pivots['sup'])
-        for res in resistences:
-            # print ('res: ', row["s1"] * 1.01, res)
-            if row["high"] <= res and row["r1"] < res and res >= row["s1"] * 1.02:
-                return res
-    df = df.assign(s1=df.apply(set_sup, axis=1))
-    df = df.assign(s2=df.apply(set_sup2, axis=1))
-    df = df.assign(r1=df.apply(set_res, axis=1))
-    df = df.assign(r2=df.apply(set_res2, axis=1))
-    
+
     return df
 
 def find_support_resistance(dataframe: pd.DataFrame, quantile: int, samples: int) -> pd.DataFrame:

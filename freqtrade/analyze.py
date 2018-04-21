@@ -10,7 +10,7 @@ from pandas import DataFrame, to_datetime
 
 from freqtrade.exchange import get_ticker_history
 from freqtrade.logger import Logger
-from freqtrade.persistence import Trade
+from freqtrade.persistence import Trade, Pair
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
 from freqtrade.indicators import get_trend_lines, get_pivots
@@ -111,12 +111,12 @@ class Analyze(object):
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
-        print (dataframe)
+        # print (dataframe)
 
-        dataframe = get_pivots(dataframe, pair, piv_type='res')
         dataframe = get_pivots(dataframe, pair, piv_type='sup')
+        dataframe = get_pivots(dataframe, pair, piv_type='res')
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
-        print (dataframe)
+        # print (dataframe)
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:
