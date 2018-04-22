@@ -324,8 +324,8 @@ class DefaultStrategy(IStrategy):
                 # |
                 (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
                 |
-                (dataframe['close'] >= dataframe['r2'] * 0.999)
-                |
+                # (dataframe['close'] >= dataframe['r2'] * 0.999)
+                # |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
 

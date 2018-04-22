@@ -54,6 +54,8 @@ def init(config: dict, engine: Optional[Engine] = None) -> None:
     session = scoped_session(sessionmaker(bind=engine, autoflush=True, autocommit=True))
     Trade.session = session()
     Trade.query = session.query_property()
+    Pair.session = session()
+    Pair.query = session.query_property()
     _DECL_BASE.metadata.create_all(engine)
 
     # Clean dry_run DB
@@ -246,9 +248,22 @@ class Pair(_DECL_BASE):
         )
 
 
-    def get_trend(self) -> list:
-        trend = get_trend(self.pair, 60)
-        return trend
+
+    def get_trend_lines(self) -> list:
+        # Check if is time to update pivots
+        # return self.update_pivots()
+        if self.pivots_update_date:
+            if self.pivots_update_date < datetime.utcnow() - timedelta(minutes=(30)):
+                logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
+                               self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
+                # print ('update pivots: ', self.pivots)
+                return self.update_pivots()
+            else:
+                pivots = {'sup': self.supports,
+                            'res': self.resistences}
+                return pivots
+        else:
+            return self.update_pivots()
 
     def get_pivots(self) -> list:
         # Check if is time to update pivots

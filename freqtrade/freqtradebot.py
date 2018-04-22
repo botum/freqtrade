@@ -18,7 +18,7 @@ from freqtrade.analyze import Analyze
 from freqtrade.constants import Constants
 from freqtrade.fiat_convert import CryptoToFiatConverter
 from freqtrade.logger import Logger
-from freqtrade.persistence import Trade
+from freqtrade.persistence import Trade, Pair
 from freqtrade.rpc.rpc_manager import RPCManager
 from freqtrade.state import State
 
@@ -226,12 +226,26 @@ class FreqtradeBot(object):
             # else the pair is valid
             known_pairs.add(pair)
             # Market is not active
-            if not market['active']:
-                sanitized_whitelist.remove(pair)
-                self.logger.info(
-                    'Ignoring %s from whitelist. Market is not active.',
-                    pair
+            # if not market['active']:
+            #     sanitized_whitelist.remove(pair)
+            #     self.logger.info(
+            #         'Ignoring %s from whitelist. Market is not active.',
+            #         pair
+            #     )
+
+            # print (known_pairs)
+            pair_obj = Pair.query.filter(Pair.pair.is_(pair)).first()
+
+            if pair_obj == None:
+                pair_obj = Pair(
+                    pair=pair
                 )
+                Pair.session.add(pair_obj)
+                # trend = get_trend(pair, 30)
+                # # Not in downtrend in the last 24hrs
+                # if trend != 1:
+                #     sanitized_whitelist.remove(pair)
+                Pair.session.flush()
 
         # We need to remove pairs that are unknown
         final_list = [x for x in sanitized_whitelist if x in known_pairs]
