@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple
 import arrow
 from pandas import DataFrame, to_datetime
 
+from freqtrade import (DependencyException, OperationalException, exchange, persistence)
 from freqtrade.exchange import get_ticker_history
 from freqtrade.logger import Logger
 from freqtrade.persistence import Trade, Pair
@@ -112,11 +113,12 @@ class Analyze(object):
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
         # print (dataframe)
+        persistence.init(self.config)
+        exchange.init(self.config)
+        pair_obj = Pair.query.filter(Pair.pair.is_(_pair)).first()
 
-        dataframe = get_pivots(dataframe, pair, piv_type='sup')
-        dataframe = get_pivots(dataframe, pair, piv_type='res')
-        # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
-        # print (dataframe)
+        dataframe = pair_obj.get_pivots(dataframe)
+
         return dataframe
 
     def populate_buy_trend(self, dataframe: DataFrame) -> DataFrame:

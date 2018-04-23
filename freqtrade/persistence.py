@@ -237,6 +237,10 @@ class Pair(_DECL_BASE):
     last_rate = Column(Float, default=0)
     supports = Column(ScalarListType, nullable=True)
     resistences = Column(ScalarListType, nullable=True)
+    day_trend = Column(ScalarListType, nullable=True)
+    hour_trend = Column(ScalarListType, nullable=True)
+    minute_trend = Column(ScalarListType, nullable=True)
+    minute_trend = Column(ScalarListType, nullable=True)
     pivots_update_date = Column(DateTime, default=None)
 
     def __repr__(self):
@@ -252,18 +256,54 @@ class Pair(_DECL_BASE):
     def get_trend_lines(self) -> list:
         # Check if is time to update pivots
         # return self.update_pivots()
-        if self.pivots_update_date:
-            if self.pivots_update_date < datetime.utcnow() - timedelta(minutes=(30)):
-                logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
-                               self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
-                # print ('update pivots: ', self.pivots)
-                return self.update_pivots()
-            else:
-                pivots = {'sup': self.supports,
-                            'res': self.resistences}
-                return pivots
-        else:
-            return self.update_pivots()
+
+        # if self.current_rate < self.:
+        #     logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
+        #                    self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
+        #     # print ('update pivots: ', self.pivots)
+        #     return self.update_pivots()
+        # else:
+        #     pivots = {'sup': self.supports,
+        #                 'res': self.resistences}
+        #     return pivots
+        # else:
+        #     return self.update_pivots()
+        self.day_trend, self.main_maxslope, self.main_minslope = cactix.gentrends(df1d)
+        self.hour_trend, self.hour_maxslope, self.hour_minslope = cactix.gentrends(df1h)
+        #
+        return cactix.gentrends(df)
+
+    # def populate_trend_lines(self, df: DataFrame) -> list:
+    #     # Check if is time to update pivots
+    #     # return self.update_pivots()
+    #     if self.pivots_update_date:
+    #         if self.pivots_update_date < datetime.utcnow() - timedelta(minutes=(30)):
+    #             logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
+    #                            self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
+    #             # print ('update pivots: ', self.pivots)
+    #             return self.update_pivots()
+    #         else:
+    #             pivots = {'sup': self.supports,
+    #                         'res': self.resistences}
+    #             return pivots
+    #     else:
+    #         return self.update_pivots()
+
+    def update_trend_lines(self) -> list:
+        """
+        Updates this entity with amount and actual open/close rates.
+        :param order: order retrieved by exchange.get_order()
+        :return: None
+        """
+
+        logger.info('Updating pair %s trend lines...', self.pair)
+
+        getcontext().prec = 8  # Bittrex do not go above 8 decimal
+
+        # print (df)
+        self.day_trend, self.main_maxslope, self.main_minslope = cactix.gentrends(df1d)
+        self.hour_trend, self.hour_maxslope, self.hour_minslope = cactix.gentrends(df1h)
+
 
     def get_pivots(self) -> list:
         # Check if is time to update pivots
@@ -307,7 +347,7 @@ class Pair(_DECL_BASE):
     #     #     for p in pivots:
     #     #         if row["low"] > p:
     #     #             return p
-    #     # df.assign(p1=dataframe.apply(set_pivots, axis=1))
+    #     # df.assign(p1=.apply(set_pivots, axis=1))
     #     #
     #     # def set_sup(row):
     #     #     for sup in piv_clean:

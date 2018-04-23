@@ -31,7 +31,7 @@ from freqtrade.exchange import get_ticker_history
 
 # from freqtrade.analyze import Analyze
 
-import scripts.cactix as trendy
+import scripts.trendy_2 as trendy
 
 from pandas import Series
 
@@ -76,7 +76,7 @@ def get_trend_lines(live_df: pd.DataFrame, pair: str, timerange: int=600, interv
     #     return []  # return False ?
     #
     # window = len(dataframe)
-    main_trends, main_maxslope, main_minslope = trendy.gentrends(live_df['close'], window=1/2, charts=charts)
+    main_trends, main_maxslope, main_minslope = trendy.gentrends(live_df.close, window=1/2, charts=charts)
 
 
 #     df = live_df['close']

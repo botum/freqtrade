@@ -19,7 +19,7 @@ def movingaverage(interval, window_size=14, pad=False):
             ma[i]=seq.sum()/len(seq)
     return ma
 
-def gentrends(x, window=1/3.0, charts=True, pair='default_filename_plot'):
+def gentrends(df, window=1/3.0, charts=True, pair='default_filename_plot'):
     """
     Returns a Pandas dataframe with support and resistance lines.
 
@@ -28,57 +28,67 @@ def gentrends(x, window=1/3.0, charts=True, pair='default_filename_plot'):
                    will be taken as a percentage of the size of the data
     :param charts: Boolean value saying whether to print chart to screen
     """
-
+    from scipy import stats
     import numpy as np
-
-    x = np.array(x)
+    print (df)
+    h = np.array(df.high)
+    l = np.array(df.low)
     # print(x)
-    if window < 1:
-        window = int(window * len(x))
+    # if window < 1:
+    #     window = int(window * len(x))
 
-    max1 = np.where(x == max(x))[0][0]  # find the index of the abs max
-    min1 = np.where(x == min(x))[0][0]  # find the index of the abs min
+    max1 = np.where(h == max(h))[0][0]  # find the index of the abs max
+    min1 = np.where(l == min(l))[0][0]  # find the index of the abs min
 
     # First the max
-    if max1 + window > len(x):
-        max2 = max(x[0:(max1 - window)])
-    else:
-        max2 = max(x[(max1 + window):])
+    # if max1 + window > len(x):
+    #     max2 = max(x[0:(max1 - window)])
+    # else:
+    #     max2 = max(x[(max1 + window):])
+    max2 = max(h[(max1):])
 
     # Now the min
-    if min1 - window < 0:
-        min2 = min(x[(min1 + window):])
-    else:
-        min2 = min(x[0:(min1 - window)])
+    # if min1 - window < 0:
+    #     min2 = min(x[(min1 + window):])
+    # else:
+    #     min2 = min(x[0:(min1 - window)])
+    min2 = min(l[(min1):])
 
     # Now find the indices of the secondary extrema
-    max2 = np.where(x == max2)[0][0]  # find the index of the 2nd max
-    min2 = np.where(x == min2)[0][0]  # find the index of the 2nd min
+    max2 = np.where(h == max2)[0][0]  # find the index of the 2nd max
+    min2 = np.where(l == min2)[0][0]  # find the index of the 2nd min
 
+    h_slope, intercept, r_value, p_value, std_err = stats.linregress([h[max1], max1],[h[max2], max2])
+
+    print ('slope: ', h_slope)
+    print('intercept: ', intercept)
+    print('r_value: ', r_value)
+    print('p_value: ', p_value)
+    print('std_err: ', std_err)
     # Create & extend the lines
-    maxslope = (x[max1] - x[max2]) / (max1 - max2)  # slope between max points
-    minslope = (x[min1] - x[min2]) / (min1 - min2)  # slope between min points
-    a_max = x[max1] - (maxslope * max1)  # y-intercept for max trendline
-    a_min = x[min1] - (minslope * min1)  # y-intercept for min trendline
-    b_max = x[max1] + (maxslope * (len(x) - max1))  # extend to last data pt
-    b_min = x[min1] + (minslope * (len(x) - min1))  # extend to last data point
-    maxline = np.linspace(a_max, b_max, len(x))  # Y values between max's
-    minline = np.linspace(a_min, b_min, len(x))  # Y values between min's
+    # maxslope = (x[max1] - x[max2]) / (max1 - max2)  # slope between max points
+    # minslope = (x[min1] - x[min2]) / (min1 - min2)  # slope between min points
+    # a_max = x[max1] - (maxslope * max1)  # y-intercept for max trendline
+    # a_min = x[min1] - (minslope * min1)  # y-intercept for min trendline
+    # b_max = x[max1] + (maxslope * (len(x) - max1))  # extend to last data pt
+    # b_min = x[min1] + (minslope * (len(x) - min1))  # extend to last data point
+    # maxline = np.linspace(a_max, b_max, len(x))  # Y values between max's
+    # minline = np.linspace(a_min, b_min, len(x))  # Y values between min's
 
     # OUTPUT
-    trends = np.transpose(np.array((x, maxline, minline)))
-    trends = pd.DataFrame(trends, index=np.arange(0, len(x)),
-                          columns=['Data', 'Max Line', 'Min Line'])
+    # trends = np.transpose(np.array((x, maxline, minline)))
+    # trends = pd.DataFrame(trends, index=np.arange(0, len(x)),
+    #                       columns=['Data', 'Max Line', 'Min Line'])
 
     if charts is True:
         from matplotlib.pyplot import plot, grid, show, savefig
-        plot(trends)
+        plot(slope)
         grid()
         filename = 'chart_plots/' + pair + '.png'
         savefig(filename)
         show()
 
-    return trends, maxslope, minslope
+    return h_slope
 
 def segtrends(x, segments=2, charts=True, momentum=False):
     """
