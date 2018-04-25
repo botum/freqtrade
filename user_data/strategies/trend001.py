@@ -239,6 +239,10 @@ class DefaultStrategy(IStrategy):
         dataframe['bb_middleband'] = bollinger['mid']
         dataframe['bb_upperband'] = bollinger['upper']
 
+
+        dataframe['stddev'] = ta.STDDEV(dataframe)
+
+
         # # EMA - Exponential Moving Average
         # dataframe['ema3'] = ta.EMA(dataframe, timeperiod=3)
         # dataframe['ema5'] = ta.EMA(dataframe, timeperiod=5)
@@ -273,11 +277,11 @@ class DefaultStrategy(IStrategy):
                 # buy when going down and hit support
                 # (dataframe['trend_min'] < dataframe['high'].rolling(window=5).mean().shift(1))
                 # &
-                (
-                (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
-                # |
-                # (dataframe['low'] < dataframe['main_trend_min'])
-                )
+                # (
+                # (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
+                # # |
+                # # (dataframe['low'] < dataframe['main_trend_min'])
+                # )
                 # &
                 # (
                 # (dataframe['main_trend_max'] > dataframe['main_trend_min']*1.02)
@@ -291,7 +295,7 @@ class DefaultStrategy(IStrategy):
                 # )
                 #
                 # &
-                # (dataframe['close'] <= dataframe['bb_lowerband'])
+                (dataframe['close'] <= dataframe['bb_lowerband'])
                 # &
                 # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
                 # &
@@ -323,10 +327,10 @@ class DefaultStrategy(IStrategy):
             (
                 # (dataframe['close'] >= dataframe['r1'].shift((dataframe['buy'] == 1).idxmax()) * 0.999)
                 # |
-                (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
+                # (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
                 # |
                 # (dataframe['close'] >= dataframe['r1'] * 0.999)
-                |
+                # |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
 
@@ -336,15 +340,15 @@ class DefaultStrategy(IStrategy):
                 # (dataframe['ha_open'].shift(1) > dataframe['ha_close'].shift(1))  # red bar
                 # )
                 # |
-                (dataframe['close'] <= dataframe['main_trend_min'] * 0.9)
+                # (dataframe['close'] <= dataframe['main_trend_min'] * 0.9)
                 # |
                 # (dataframe['close'] <= dataframe['trend_min'] * 0.95)
                 # &
-                # (
-                #     (dataframe['close'].shift(1) > dataframe['bb_upperband'])
-                #     &
-                #     (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
-                # )
+                (
+                    (dataframe['close'].shift(1) > dataframe['bb_upperband'])
+                    &
+                    (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
+                )
 
             ),
             'sell'] = 1
