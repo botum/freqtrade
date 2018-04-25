@@ -100,6 +100,7 @@ class Analyze(object):
         #     self.logger.warning('Empty df60 for pair %s, interval: %s', pair, interval)
 
         dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
+        # dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
 
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
         return dataframe
@@ -113,11 +114,14 @@ class Analyze(object):
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
         # print (dataframe)
-        persistence.init(self.config)
-        exchange.init(self.config)
-        pair_obj = Pair.query.filter(Pair.pair.is_(_pair)).first()
+        # persistence.init(self.config)
+        # exchange.init(self.config)
+        # pair_obj = Pair.query.filter(Pair.pair.is_(_pair)).first()
+        #
+        # dataframe = pair_obj.get_pivots(dataframe)
 
-        dataframe = pair_obj.get_pivots(dataframe)
+        dataframe = get_pivots(dataframe, pair, piv_type='sup')
+        dataframe = get_pivots(dataframe, pair, piv_type='res')
 
         return dataframe
 
@@ -152,8 +156,8 @@ class Analyze(object):
         """
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
-        dataframe = self.populate_pivots(dataframe, pair)
-        dataframe = self.populate_trend_lines(dataframe, pair)
+        # dataframe = self.populate_pivots(dataframe, pair)
+        # dataframe = self.populate_trend_lines(dataframe, pair)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe

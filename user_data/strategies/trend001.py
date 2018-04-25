@@ -156,6 +156,7 @@ class DefaultStrategy(IStrategy):
         # print (pivots)
 
 
+
         # print (dataframe['sr'], "sr002.py")
 
 
@@ -273,9 +274,9 @@ class DefaultStrategy(IStrategy):
                 # (dataframe['trend_min'] < dataframe['high'].rolling(window=5).mean().shift(1))
                 # &
                 (
-                # (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
+                (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
                 # |
-                (dataframe['low'] < dataframe['main_trend_min'])
+                # (dataframe['low'] < dataframe['main_trend_min'])
                 )
                 # &
                 # (
@@ -323,9 +324,9 @@ class DefaultStrategy(IStrategy):
                 # (dataframe['close'] >= dataframe['r1'].shift((dataframe['buy'] == 1).idxmax()) * 0.999)
                 # |
                 (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
-                |
-                # (dataframe['close'] >= dataframe['r2'] * 0.999)
                 # |
+                # (dataframe['close'] >= dataframe['r1'] * 0.999)
+                |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
 

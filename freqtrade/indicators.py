@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 
 import freqtrade.vendor.qtpylib.indicators as qtpylib
 # from freqtrade.persistence import *
-# from freqtrade.persistence import Pair
+import freqtrade.persistence
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,
                         create_engine)
@@ -32,6 +32,7 @@ from freqtrade.exchange import get_ticker_history
 # from freqtrade.analyze import Analyze
 
 import scripts.trendy_2 as trendy
+from scripts import cactix
 
 from pandas import Series
 
@@ -56,7 +57,7 @@ def in_range(x, target, percent):
 # def find_pivots(pair: str, interval: int=1, type: str='piv') -> pd.DataFrame:
     # return ''
 
-def get_trend_lines(live_df: pd.DataFrame, pair: str, timerange: int=600, interval: str="1h", charts: bool=False) -> pd.DataFrame:
+def get_trend_lines(df: pd.DataFrame, pair: str, timerange: int=600, interval: str="1h", charts: bool=True) -> pd.DataFrame:
     # trend_range = len(dataframe)
     # segments = 3
     # x_maxima, maxima, x_minima, minima = trendy.segtrends(df['close'][:trend_range], segments = segments)
@@ -76,8 +77,13 @@ def get_trend_lines(live_df: pd.DataFrame, pair: str, timerange: int=600, interv
     #     return []  # return False ?
     #
     # window = len(dataframe)
-    main_trends, main_maxslope, main_minslope = trendy.gentrends(live_df.close, window=1/2, charts=charts)
-
+    main_trends, main_maxslope, main_minslope = cactix.gentrends(df, charts=charts)
+    # main_trends, main_maxslope, main_minslope = trendy.gentrends(df.close, window=1/2, charts=charts)
+    df['main_trend_max'] = main_trends['Max Line']
+    df['main_trend_min'] = main_trends['Min Line']
+    df['main_maxslope'] = main_maxslope
+    df['main_minslope'] = main_minslope
+    # print(main_trends)
 
 #     df = live_df['close']
 #     print (len(dataframe))
@@ -114,8 +120,7 @@ def get_trend_lines(live_df: pd.DataFrame, pair: str, timerange: int=600, interv
     # trends = pd.Series(df, index=df.index)
     # trends = trends[pivots != 0]
 
-    return main_trends['Max Line'], main_trends['Min Line'], main_maxslope, \
-            main_minslope
+    return df
             # short_trends['Max Line'], short_trends['Min Line'], \
             # short_maxslope, short_minslope
 

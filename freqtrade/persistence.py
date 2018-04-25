@@ -341,25 +341,6 @@ class Pair(_DECL_BASE):
         self.supports = supports
         self.resistences = resistences
         self.pivot_update_date = datetime.utcnow()
-
-    #
-    #     # def set_pivots(row):
-    #     #     for p in pivots:
-    #     #         if row["low"] > p:
-    #     #             return p
-    #     # df.assign(p1=.apply(set_pivots, axis=1))
-    #     #
-    #     # def set_sup(row):
-    #     #     for sup in piv_clean:
-    #     #         if row["low"] > sup:
-    #     #             return sup
-    #     # def set_res(row):
-    #     #     for res in piv_clean:
-    #     #         if row["high"] < res:
-    #     #             return res
-    #     # #
-    #     # dataframe = dataframe.assign(s1=dataframe.apply(set_sup, axis=1))
-    #     # dataframe = dataframe.assign(r1=dataframe.apply(set_res, axis=1))
-    #
+        
         cleanup()
         return pivots

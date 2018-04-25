@@ -19,7 +19,7 @@ def movingaverage(interval, window_size=14, pad=False):
             ma[i]=seq.sum()/len(seq)
     return ma
 
-def gentrends(df, window=1/3.0, charts=True, pair='default_filename_plot'):
+def gentrends(df, charts=True, pair='default_filename_plot'):
     """
     Returns a Pandas dataframe with support and resistance lines.
 
@@ -30,7 +30,7 @@ def gentrends(df, window=1/3.0, charts=True, pair='default_filename_plot'):
     """
     from scipy import stats
     import numpy as np
-    print (df)
+    # print (df)
     h = np.array(df.high)
     l = np.array(df.low)
     # print(x)
@@ -39,7 +39,8 @@ def gentrends(df, window=1/3.0, charts=True, pair='default_filename_plot'):
 
     max1 = np.where(h == max(h))[0][0]  # find the index of the abs max
     min1 = np.where(l == min(l))[0][0]  # find the index of the abs min
-
+    print (max1)
+    print (min1)
     # First the max
     # if max1 + window > len(x):
     #     max2 = max(x[0:(max1 - window)])
@@ -58,37 +59,49 @@ def gentrends(df, window=1/3.0, charts=True, pair='default_filename_plot'):
     max2 = np.where(h == max2)[0][0]  # find the index of the 2nd max
     min2 = np.where(l == min2)[0][0]  # find the index of the 2nd min
 
-    h_slope, intercept, r_value, p_value, std_err = stats.linregress([h[max1], max1],[h[max2], max2])
+    # h_slope, intercept, r_value, p_value, std_err = stats.linregress([h[max1], max1],[h[max2], max2])
 
-    print ('slope: ', h_slope)
-    print('intercept: ', intercept)
-    print('r_value: ', r_value)
-    print('p_value: ', p_value)
-    print('std_err: ', std_err)
+    # print ('slope: ', h_slope)
+    # print('intercept: ', intercept)
+    # print('r_value: ', r_value)
+    # print('p_value: ', p_value)
+    # print('std_err: ', std_err)
+
     # Create & extend the lines
-    # maxslope = (x[max1] - x[max2]) / (max1 - max2)  # slope between max points
-    # minslope = (x[min1] - x[min2]) / (min1 - min2)  # slope between min points
-    # a_max = x[max1] - (maxslope * max1)  # y-intercept for max trendline
-    # a_min = x[min1] - (minslope * min1)  # y-intercept for min trendline
-    # b_max = x[max1] + (maxslope * (len(x) - max1))  # extend to last data pt
-    # b_min = x[min1] + (minslope * (len(x) - min1))  # extend to last data point
-    # maxline = np.linspace(a_max, b_max, len(x))  # Y values between max's
-    # minline = np.linspace(a_min, b_min, len(x))  # Y values between min's
+    maxslope = (h[max1] - h[max2]) / (max1 - max2)  # slope between max points
+    minslope = (l[min1] - l[min2]) / (min1 - min2)  # slope between min points
+    a_max = h[max1] - (maxslope * max1)  # y-intercept for max trendline
+    a_min = l[min1] - (minslope * min1)  # y-intercept for min trendline
+    b_max = h[max1] + (maxslope * (len(h) - max1))  # extend to last data pt
+    b_min = l[min1] + (minslope * (len(l) - min1))  # extend to last data point
+    maxline = np.linspace(a_max, b_max, len(h))  # Y values between max's
+    minline = np.linspace(a_min, b_min, len(l))  # Y values between min's
+
+    print ('a_max: ', a_max)
+    print ('a_min: ', a_min)
+    print ('b_max: ', b_max)
+    print ('b_min: ', b_min)
+
+    print ('maxline: ', maxline)
+    print ('minline: ', minline)
+    # print (df)
 
     # OUTPUT
-    # trends = np.transpose(np.array((x, maxline, minline)))
-    # trends = pd.DataFrame(trends, index=np.arange(0, len(x)),
-    #                       columns=['Data', 'Max Line', 'Min Line'])
+    trends = np.transpose(np.array((maxline, minline)))
+
+    print ('trends: ', trends)
+    trends = pd.DataFrame(trends, index=np.arange(0, len(df)),
+                          columns=['Data', 'Max Line', 'Min Line'])
 
     if charts is True:
         from matplotlib.pyplot import plot, grid, show, savefig
-        plot(slope)
+        plot(trends)
         grid()
         filename = 'chart_plots/' + pair + '.png'
         savefig(filename)
         show()
 
-    return h_slope
+    return trends, maxline, minline
 
 def segtrends(x, segments=2, charts=True, momentum=False):
     """

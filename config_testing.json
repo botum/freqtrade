@@ -40,11 +40,12 @@
           "ANT/BTC"
       ],
         "pair_whitelist": [
-            "ANT/BTC",
             "ETH/BTC",
-            "LTC/BTC",
-            "DASH/BTC",
-            "XMR/BTC"
+            "BCH/BTC",
+            "OMG/BTC",
+            "XEM/BTC",
+            "XMR/BTC",
+            "WAVES/BTC"
       ],
         "pair_whitelist_": [
             "BTC/USDT",

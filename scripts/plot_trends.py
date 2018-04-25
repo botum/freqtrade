@@ -27,7 +27,8 @@ from freqtrade import exchange
 from freqtrade.logger import Logger
 import freqtrade.optimize as optimize
 from freqtrade.indicators import get_trend_lines
-from scripts import cactix as trendy
+# from scripts import trendy_2 as trendy
+# from cactix import get_trends
 import numpy as np
 
 
@@ -71,12 +72,21 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
         )
     dataframes = analyze.tickerdata_to_dataframe(tickers)
     dataframe = dataframes[pair]
+
+    # tikers5m = optimize.load_data(
+    #     datadir=args.datadir,
+    #     pairs=[pair],
+    #     ticker_interval='5m',
+    #     refresh_pairs=False,
+    #     timerange=timerange
+    # )
+    # df5m = analyze.tickerdata_to_dataframe(tickers5m)[pair]
     dataframe = analyze.populate_trend_lines(dataframe, pair)
-    dataframe = analyze.populate_pivots(dataframe, pair)
+    # dataframe = analyze.populate_pivots(dataframe, pair)
     dataframe = analyze.populate_buy_trend(dataframe)
     df = dataframe = analyze.populate_sell_trend(dataframe)
 
-    trends_x_max, trends_max, trends_x_min, trends_min = trendy.segtrends(dataframe.close, segments = 10, charts = True)
+    # trends_x_max, trends_max, trends_x_min, trends_min = trendy.segtrends(dataframe.close, segments = 10, charts = True)
 
 #     if len(dataframe.index) > 750:
 #         logger.warning('Ticker contained more than 750 candles, clipping.')
@@ -147,30 +157,30 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
 
     # Print support and resistances horizontal lines
 
-    sup_lines = []
-    sup = np.unique(df['s1'].dropna().values)
-    # print ('supports: ', df['s1'].dropna().values)
-    for i in range(0, len(sup)):
-        # print (sup[i])
-        fig.append_trace(go.Scatter(
-            x = [df['date'][0],df['date'][-1]],
-            y = [sup[i],sup[i]],
-            line = dict(color = 'rgba(147,112,219,0.5)'),
-            mode = 'line',
-            name = 'sup '+ str(sup[i])
-        ), 1, 1)
-
-    res_lines = []
-    res = np.unique(df['r1'].dropna().values)
-    for i in range(0, len(res)):
-        # print (pivots[i])
-        fig.append_trace(go.Scatter(
-            x = [df['date'][0],df['date'][-1]],
-            y = [res[i],res[i]],
-            line = dict(color = 'rgba(23, 190, 207,0.5)'),
-            mode = 'line',
-            name = 'res '+ str(res[i])
-        ), 1, 1)
+    # sup_lines = []
+    # sup = np.unique(df['s1'].dropna().values)
+    # # print ('supports: ', df['s1'].dropna().values)
+    # for i in range(0, len(sup)):
+    #     # print (sup[i])
+    #     fig.append_trace(go.Scatter(
+    #         x = [df['date'][0],df['date'][-1]],
+    #         y = [sup[i],sup[i]],
+    #         line = dict(color = 'rgba(147,112,219,0.5)'),
+    #         mode = 'line',
+    #         name = 'sup '+ str(sup[i])
+    #     ), 1, 1)
+    #
+    # res_lines = []
+    # res = np.unique(df['r1'].dropna().values)
+    # for i in range(0, len(res)):
+    #     # print (pivots[i])
+    #     fig.append_trace(go.Scatter(
+    #         x = [df['date'][0],df['date'][-1]],
+    #         y = [res[i],res[i]],
+    #         line = dict(color = 'rgba(23, 190, 207,0.5)'),
+    #         mode = 'line',
+    #         name = 'res '+ str(res[i])
+    #     ), 1, 1)
 
 
     # Trend lines
@@ -179,38 +189,58 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
     # print(trends_x_max.tolist())
     # print(list(df.date[df.index.isin(trends_x_max)]))
     #
-    fig.append_trace(go.Scatter(
-        x = list(df.date[df.index.isin(trends_x_max)]),
-        y = trends_max.tolist(),
-        line = dict(color = 'black'),
-        mode = 'line',
-        name = 'trend max'
-    ), 1, 1)
-    fig.append_trace(go.Scatter(
-        x = list(df.date[df.index.isin(trends_x_min)]),
-        y = trends_min.tolist(),
-        line = dict(color = 'black'),
-        mode = 'line',
-        name = 'trend min'
-    ), 1, 1)
+    # fig.append_trace(go.Scatter(
+    #     x = list(df.date[df.index.isin(trends_x_max)]),
+    #     y = trends_max.tolist(),
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend max'
+    # ), 1, 1)
+    # fig.append_trace(go.Scatter(
+    #     x = list(df.date[df.index.isin(trends_x_min)]),
+    #     y = trends_min.tolist(),
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend min'
+    # ), 1, 1)
 
     # print (df.main_trend_max.iloc[-1])
 
-    fig.append_trace(go.Scatter(
-        x = [df.date.iloc[0], df.date.iloc[-1]],
-        y = [df.main_trend_max.iloc[0], df.main_trend_max.iloc[-1]],
-        line = dict(color = 'black'),
-        mode = 'line',
-        name = 'trend max'
-    ), 1, 1)
-    fig.append_trace(go.Scatter(
-        x = [df.date.iloc[0], df.date.iloc[-1]],
-        y = [df.main_trend_min.iloc[0], df.main_trend_min.iloc[-1]],
-        line = dict(color = 'black'),
-        mode = 'line',
-        name = 'trend min'
-    ), 1, 1)
+    # # segtrends plot
+    #
+    # fig.append_trace(go.Scatter(
+    #     x = [df.date.iloc[0], df.date.iloc[-1]],
+    #     y = [df.main_trend_max.iloc[0], df.main_trend_max.iloc[-1]],
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend max'
+    # ), 1, 1)
+    # fig.append_trace(go.Scatter(
+    #     x = [df.date.iloc[0], df.date.iloc[-1]],
+    #     y = [df.main_trend_min.iloc[0], df.main_trend_min.iloc[-1]],
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend min'
+    # ), 1, 1)
 
+
+
+    # cactix lightbuoy
+
+    # fig.append_trace(go.Scatter(
+    #     x = [df.date.iloc[0], df.date.iloc[-1]],
+    #     y = [df.main_trend_max.iloc[0], df.main_trend_max.iloc[-1]],
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend max'
+    # ), 1, 1)
+    # fig.append_trace(go.Scatter(
+    #     x = [df.date.iloc[0], df.date.iloc[-1]],
+    #     y = [df.main_trend_min.iloc[0], df.main_trend_min.iloc[-1]],
+    #     line = dict(color = 'black'),
+    #     mode = 'line',
+    #     name = 'trend min'
+    # ), 1, 1)
 
     fig.append_trace(candles, 1, 1)
     fig.append_trace(bb_lower, 1, 1)
@@ -256,5 +286,5 @@ def main(sysargv: List[str]) -> None:
 
 
 if __name__ == '__main__':
-    # sys.argv[1:]=['-s', 'trend001', '-p', 'ETH/BTC']
+    sysargvsys=['-s', 'trend001', '-p', 'ETH/BTC']
     main(sys.argv[1:])
