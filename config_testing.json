@@ -1,6 +1,6 @@
 {
     "max_open_trades": 50,
-    "stake_currency": "BTC",
+    "stake_currency": "USDT",
     "stake_amount": 0.1,
     "fiat_display_currency": "USD",
     "dry_run": true,
@@ -39,7 +39,7 @@
           "BNT/BTC",
           "ANT/BTC"
       ],
-        "pair_whitelist": [
+        "pair_whitelist_": [
             "ETH/BTC",
             "BCH/BTC",
             "OMG/BTC",
@@ -47,7 +47,7 @@
             "XMR/BTC",
             "WAVES/BTC"
       ],
-        "pair_whitelist_": [
+        "pair_whitelist": [
             "BTC/USDT",
             "ETH/USDT",
             "LTC/USDT",

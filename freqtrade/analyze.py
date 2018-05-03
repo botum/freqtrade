@@ -15,7 +15,7 @@ from freqtrade.persistence import Trade, Pair
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
 from freqtrade.indicators import get_trend_lines, get_pivots
-
+from freqtrade.trends import gentrends
 
 
 class SignalType(Enum):
@@ -99,10 +99,14 @@ class Analyze(object):
         # if df60.empty:
         #     self.logger.warning('Empty df60 for pair %s, interval: %s', pair, interval)
 
-        dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
+        # dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
         # dataframe['main_trend_max'], dataframe['main_trend_min'], dataframe['main_trend_max_slope'], dataframe['main_trend_min_slope'] = get_trend_lines(dataframe, pair)
 
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
+
+        dataframe = gentrends(dataframe, pair=pair)
+        
+
         return dataframe
 
     def populate_pivots(self, dataframe: DataFrame, pair: str) -> DataFrame:

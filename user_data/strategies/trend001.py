@@ -53,7 +53,7 @@ class DefaultStrategy(IStrategy):
     stoploss = -0.6
 
     # Optimal ticker interval for the strategy
-    ticker_interval = "1m"
+    ticker_interval = "1d"
 
     def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
@@ -138,7 +138,8 @@ class DefaultStrategy(IStrategy):
         return dataframe
 
 
-    def populate_indicators(self, dataframe: DataFrame, pivots: dict={}) -> DataFrame:
+    def populate_indicators(self, dataframe: DataFrame) -> DataFrame:
+
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -234,7 +235,7 @@ class DefaultStrategy(IStrategy):
         dataframe['blower'] = ta.BBANDS(dataframe, nbdevup=2, nbdevdn=2)['lowerband']
 
         # Bollinger bands
-        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=2.5)
+        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=1)
         dataframe['bb_lowerband'] = bollinger['lower']
         dataframe['bb_middleband'] = bollinger['mid']
         dataframe['bb_upperband'] = bollinger['upper']
