@@ -81,7 +81,7 @@ def plot_analyzed_dataframe(args: Namespace) -> None:
     #     timerange=timerange
     # )
     # df5m = analyze.tickerdata_to_dataframe(tickers5m)[pair]
-    dataframe = analyze.populate_trend_lines(dataframe, pair)
+    dataframe = analyze.populate_trend_lines(dataframe, pair, tick_interval)
     # dataframe = analyze.populate_pivots(dataframe, pair)
     dataframe = analyze.populate_buy_trend(dataframe)
     df = dataframe = analyze.populate_sell_trend(dataframe)

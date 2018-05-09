@@ -14,8 +14,16 @@ from freqtrade.logger import Logger
 from freqtrade.persistence import Trade, Pair
 from freqtrade.strategy.strategy import Strategy
 from freqtrade.constants import Constants
-from freqtrade.indicators import get_trend_lines, get_pivots
+from freqtrade.indicators import get_trend_lines, get_pivots, in_range
 from freqtrade.trends import gentrends
+
+# ZigZag
+
+# This is inside your IPython Notebook
+import pyximport
+pyximport.install(reload_support=True)
+from freqtrade.vendor.zigzag_hi_lo import *
+# from zigzag import *
 
 
 class SignalType(Enum):
@@ -69,7 +77,7 @@ class Analyze(object):
         """
         return self.strategy.populate_indicators(dataframe=dataframe)
 
-    def populate_trend_lines(self, dataframe: DataFrame, pair: str) -> DataFrame:
+    def populate_trend_lines(self, df: DataFrame, pair: str, interval: int) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -104,10 +112,58 @@ class Analyze(object):
 
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
 
-        dataframe = gentrends(dataframe, pair=pair)
-        
 
-        return dataframe
+        timeframe_volat = {
+                        '1d':1.1,
+                        '1h':0.0009,
+                        '5m':4,
+                        '1m':1.2}
+
+        volat_window = {
+                        '1d':0.5,
+                        '1h':2,
+                        '5m':10,
+                        '1m':5}
+        print (interval)
+        window = volat_window[interval]
+        df['bb_exp'] = (df.bb_upperband.rolling(window=window).max() - df.bb_lowerband.rolling(window=window).min()) / df.bb_upperband.rolling(window=window).max() * timeframe_volat[interval]
+        pivots = peak_valley_pivots(df.low.values, df.high.values, df.bb_exp.values)
+        df['pivots'] = np.transpose(np.array((pivots)))
+
+        df = gentrends(df, pair=pair, charts=True)
+        # print (df)
+        # print (df)
+        # def set_sup(row):
+        #     # print (row)
+        #     supports = [col for col in df if col.startswith('t_')]
+        #     # support = df[df['ids'].str.contains('ball', na = False)]
+        #     # print(supports)
+        #     # print (pivots['sup'])
+        #     for sup in supports:
+        #         # print (row["low"] >= sup * 0.98)
+        #         # print (row)
+        #         if row["low"] >= row[sup]:
+        #             # print ('bingo: ')
+        #             # print ('sup: ', row[sup], 'low: ', row['low'])
+        #             # if in_range(row["close"],row[sup], 0.001):
+        #             #     print ('buy zone: ')
+        #             #     print ('sup: ', row[sup], 'close: ', row['close'], 'low: ', row['low'])
+        #             return row[sup]
+        # def set_res(row):
+        #     resistences = [col for col in df if col.startswith('t_')]
+        #     # resistences.append(pivots['sup'])
+        #     for res in resistences:
+        #         # print ('res: ', row[res] , row[high])
+        #         #  and res >= row["s1"] * 1.02
+        #         if row["high"] <= row[res]:
+        #             return row[res]
+        # df = df.assign(st=df.apply(set_sup, axis=1))
+        # df = df.assign(rt=df.apply(set_res, axis=1))
+
+#         dataframe['s1'] = df.filter(regex='trend-$', axis=1)[]
+        # print (df.st, df.rt)
+
+        return df
 
     def populate_pivots(self, dataframe: DataFrame, pair: str) -> DataFrame:
         """
@@ -124,8 +180,8 @@ class Analyze(object):
         #
         # dataframe = pair_obj.get_pivots(dataframe)
 
-        dataframe = get_pivots(dataframe, pair, piv_type='sup')
-        dataframe = get_pivots(dataframe, pair, piv_type='res')
+        # dataframe = get_pivots(dataframe, pair, piv_type='sup')
+        # dataframe = get_pivots(dataframe, pair, piv_type='res')
 
         return dataframe
 
@@ -152,7 +208,7 @@ class Analyze(object):
         """
         return self.strategy.ticker_interval
 
-    def analyze_ticker(self, ticker_history: List[Dict], pair: str) -> DataFrame:
+    def analyze_ticker(self, ticker_history: List[Dict], pair: str, interval: int) -> DataFrame:
         """
         Parses the given ticker history and returns a populated DataFrame
         add several TA indicators and buy signal to it
@@ -161,7 +217,7 @@ class Analyze(object):
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
         # dataframe = self.populate_pivots(dataframe, pair)
-        # dataframe = self.populate_trend_lines(dataframe, pair)
+        dataframe = self.populate_trend_lines(dataframe, pair, interval)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe
@@ -180,7 +236,7 @@ class Analyze(object):
             return False, False
 
         try:
-            dataframe = self.analyze_ticker(ticker_hist, pair)
+            dataframe = self.analyze_ticker(ticker_hist, pair, interval)
         except ValueError as error:
             self.logger.warning(
                 'Unable to analyze ticker for pair %s: %s',

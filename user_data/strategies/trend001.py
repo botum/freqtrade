@@ -10,6 +10,8 @@ from freqtrade.indicators import in_range, went_down, get_trend_lines, get_pivot
 
 # from freqtrade.persistence import *
 
+from freqtrade.trends import *
+
 class_name = 'DefaultStrategy'
 
 # pair = 'ETH/BTC'
@@ -46,14 +48,14 @@ class DefaultStrategy(IStrategy):
         # "30":  0.001,
         # "20":  0.005,
         # "10":  0.008,
-        # "0":  0.0001
+        # "0":  0.01
     }
 
     # Optimal stoploss designed for the strategy
     stoploss = -0.6
 
     # Optimal ticker interval for the strategy
-    ticker_interval = "1d"
+    ticker_interval = "1m"
 
     def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
@@ -155,7 +157,6 @@ class DefaultStrategy(IStrategy):
         # dataframe['xMax'], dataframe['yMax'], dataframe['xMin'], dataframe['yMin'] = trendy.minitrends(dataframe['close'], window = 30)
         #
         # print (pivots)
-
 
 
         # print (dataframe['sr'], "sr002.py")
@@ -284,6 +285,17 @@ class DefaultStrategy(IStrategy):
                 # # (dataframe['low'] < dataframe['main_trend_min'])
                 # )
                 # &
+                (
+                (dataframe['close'] < dataframe['st']*1.005)
+                &
+                (dataframe['rt'] > dataframe['st']*1.02)
+                )
+                # buy breakout?
+                |
+                (
+                (dataframe['close'] > dataframe['rt']*1.01)
+                )
+                # &
                 # (
                 # (dataframe['main_trend_max'] > dataframe['main_trend_min']*1.02)
                 # |
@@ -295,8 +307,8 @@ class DefaultStrategy(IStrategy):
                 # (dataframe['trend_max'] > dataframe['trend_min'])
                 # )
                 #
-                # &
-                (dataframe['close'] <= dataframe['bb_lowerband'])
+                &
+                (dataframe['close'] <= dataframe['bb_lowerband']*1.001)
                 # &
                 # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
                 # &
@@ -345,14 +357,18 @@ class DefaultStrategy(IStrategy):
                 # |
                 # (dataframe['close'] <= dataframe['trend_min'] * 0.95)
                 # &
-                (
-                    (dataframe['close'].shift(1) > dataframe['bb_upperband'])
-                    &
-                    (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
-                )
+#                 (
+#                     (dataframe['close'].shift(1) > dataframe['bb_upperband'])
+#                     &
+#                     (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
+#                 )
+                (dataframe['close'] >= dataframe['rt'].shift(1)*0.9999)
+                |
+                (dataframe['close'] <= dataframe['st'].shift(1) * 0.99)
 
             ),
             'sell'] = 1
+        # print (dataframe.loc[dataframe['sell']==1].close)
 
         return dataframe
 
