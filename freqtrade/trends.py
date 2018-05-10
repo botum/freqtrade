@@ -87,7 +87,7 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
         t = df.index[ax:]
         # print (h)
         id_max = h[:-1].high.values.argmax()
-        print (id_max, len(h))
+        # print (id_max, len(h))
 
         trend_name = 't_r'+str(ax)+'-'+str(bx)
 
@@ -124,7 +124,7 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
                 get_tests(df, trend_name, 'res', False)
         if i == id_max:
             df_orig['rt'] = df[trend_name]
-            print (trend_name)
+            # print (trend_name)
         trends['last'][-1] = 1
 
     for i in range(0, len(l) -1):
@@ -177,7 +177,7 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
                 get_tests(df, trend_name, 'sup', False)
 #                 plt.plot(t, trend_next_wave, 'g', label='fitted line', alpha=0.3)
         if i == id_min:
-            print ('sup: ', trend_name)
+            # print ('sup: ', trend_name)
             df_orig['st'] = df[trend_name]
         trends['last'][-1] = 1
 
@@ -255,7 +255,7 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
         plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
 
         print(pair)
-        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '.png'
+        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
         print('saving file: ', filename)
         plt.savefig(filename)
         plt.close()

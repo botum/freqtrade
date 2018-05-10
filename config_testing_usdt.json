@@ -9,9 +9,9 @@
         "ask_last_balance": 0.01
     },
     "exchange": {
-        "name": "bittrex",
-        "key": "9780913dbf034693abf62e2e694e58bd",
-        "secret": "4076ce2405b842b7a784bfad85b14f10",
+        "name": "binance",
+        "key": "",
+        "secret": "",
         "pair_whitelist_": [
           "BCH/BTC",
           "OMG/BTC",
@@ -48,7 +48,13 @@
             "WAVES/BTC"
       ],
         "pair_whitelist": [
-            "ETH/USDT"
+            "ETH/USDT",
+            "LTC/USDT",
+            "ADA/USDT",
+            "NEO/USDT",
+            "XRP/USDT",
+            "QTUM/USDT",
+            "BNB/USDT"
       ]
     },
     "whaleclub_whitelist": [
