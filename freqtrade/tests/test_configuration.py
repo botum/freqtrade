@@ -69,6 +69,21 @@ def test_load_config_file(default_conf, mocker, caplog) -> None:
     assert log_has('Validating configuration ...', caplog.record_tuples)
 
 
+def test_load_config_max_open_trades_zero(default_conf, mocker, caplog) -> None:
+    """
+    Test Configuration._load_config_file() method
+    """
+    conf = deepcopy(default_conf)
+    conf['max_open_trades'] = 0
+    file_mock = mocker.patch('freqtrade.configuration.open', mocker.mock_open(
+        read_data=json.dumps(conf)
+    ))
+
+    Configuration([])._load_config_file('somefile')
+    assert file_mock.call_count == 1
+    assert log_has('Validating configuration ...', caplog.record_tuples)
+
+
 def test_load_config_file_exception(mocker, caplog) -> None:
     """
     Test Configuration._load_config_file() method
@@ -99,8 +114,8 @@ def test_load_config(default_conf, mocker) -> None:
     configuration = Configuration(args)
     validated_conf = configuration.load_config()
 
-    assert 'strategy' in validated_conf
-    assert validated_conf['strategy'] == 'default_strategy'
+    assert validated_conf.get('strategy') == 'DefaultStrategy'
+    assert validated_conf.get('strategy_path') is None
     assert 'dynamic_whitelist' not in validated_conf
     assert 'dry_run_db' not in validated_conf
 
@@ -115,20 +130,40 @@ def test_load_config_with_params(default_conf, mocker) -> None:
 
     args = [
         '--dynamic-whitelist', '10',
-        '--strategy', 'test_strategy',
-        '--dry-run-db'
+        '--strategy', 'TestStrategy',
+        '--strategy-path', '/some/path',
+        '--dry-run-db',
     ]
     args = Arguments(args, '').get_parsed_arg()
 
     configuration = Configuration(args)
     validated_conf = configuration.load_config()
 
-    assert 'dynamic_whitelist' in validated_conf
-    assert validated_conf['dynamic_whitelist'] == 10
-    assert 'strategy' in validated_conf
-    assert validated_conf['strategy'] == 'test_strategy'
-    assert 'dry_run_db' in validated_conf
-    assert validated_conf['dry_run_db'] is True
+    assert validated_conf.get('dynamic_whitelist') == 10
+    assert validated_conf.get('strategy') == 'TestStrategy'
+    assert validated_conf.get('strategy_path') == '/some/path'
+    assert validated_conf.get('dry_run_db') is True
+
+
+def test_load_custom_strategy(default_conf, mocker) -> None:
+    """
+    Test Configuration.load_config() without any cli params
+    """
+    custom_conf = deepcopy(default_conf)
+    custom_conf.update({
+        'strategy': 'CustomStrategy',
+        'strategy_path': '/tmp/strategies',
+    })
+    mocker.patch('freqtrade.configuration.open', mocker.mock_open(
+        read_data=json.dumps(custom_conf)
+    ))
+
+    args = Arguments([], '').get_parsed_arg()
+    configuration = Configuration(args)
+    validated_conf = configuration.load_config()
+
+    assert validated_conf.get('strategy') == 'CustomStrategy'
+    assert validated_conf.get('strategy_path') == '/tmp/strategies'
 
 
 def test_show_info(default_conf, mocker, caplog) -> None:
@@ -141,7 +176,7 @@ def test_show_info(default_conf, mocker, caplog) -> None:
 
     args = [
         '--dynamic-whitelist', '10',
-        '--strategy', 'test_strategy',
+        '--strategy', 'TestStrategy',
         '--dry-run-db'
     ]
     args = Arguments(args, '').get_parsed_arg()
@@ -185,7 +220,7 @@ def test_setup_configuration_without_arguments(mocker, default_conf, caplog) -> 
 
     args = [
         '--config', 'config.json',
-        '--strategy', 'default_strategy',
+        '--strategy', 'DefaultStrategy',
         'backtesting'
     ]
 
@@ -229,7 +264,7 @@ def test_setup_configuration_with_arguments(mocker, default_conf, caplog) -> Non
 
     args = [
         '--config', 'config.json',
-        '--strategy', 'default_strategy',
+        '--strategy', 'DefaultStrategy',
         '--datadir', '/foo/bar',
         'backtesting',
         '--ticker-interval', '1m',

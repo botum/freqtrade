@@ -10,7 +10,7 @@ Optional Cli parameters
 -s / --strategy: strategy to use
 --timerange: specify what timerange of data to use.
 """
-
+import logging
 import sys
 import json
 from argparse import Namespace
@@ -24,15 +24,14 @@ import plotly.graph_objs as go
 from freqtrade.arguments import Arguments
 from freqtrade.configuration import Configuration
 from freqtrade.analyze import Analyze
-from freqtrade.logger import Logger
-from freqtrade.constants import Constants
+from freqtradeimport constants
+
 
 import freqtrade.optimize as optimize
 import freqtrade.misc as misc
 
 
-logger = Logger(name="Graph profits").get_logger()
-
+logger = logging.getLogger(__name__)
 
 # data:: [ pair,      profit-%,  enter,         exit,        time, duration]
 # data:: ["ETH/BTC", 0.0023975, "1515598200", "1515602100", "2018-01-10 07:30:00+00:00", 65]
@@ -192,7 +191,7 @@ def define_index(min_date: int, max_date: int, interval: str) -> int:
     """
     Return the index of a specific date
     """
-    interval_minutes = Constants.TICKER_INTERVAL_MINUTES[interval]
+    interval_minutes = constants.TICKER_INTERVAL_MINUTES[interval]
     return int((max_date - min_date) / (interval_minutes * 60))
 
 

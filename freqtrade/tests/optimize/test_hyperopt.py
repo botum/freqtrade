@@ -3,16 +3,15 @@ import os
 import signal
 from copy import deepcopy
 from unittest.mock import MagicMock
-import pytest
 
 import pandas as pd
+import pytest
 
 from freqtrade.optimize.__init__ import load_tickerdata_file
 from freqtrade.optimize.hyperopt import Hyperopt, start
-from freqtrade.strategy.strategy import Strategy
+from freqtrade.strategy.resolver import StrategyResolver
 from freqtrade.tests.conftest import log_has
 from freqtrade.tests.optimize.test_backtesting import get_args
-
 
 # Avoid to reinit the same object again and again
 _HYPEROPT_INITIALIZED = False
@@ -64,7 +63,6 @@ def test_start(mocker, default_conf, caplog) -> None:
     Test start() function
     """
     start_mock = MagicMock()
-    mocker.patch('freqtrade.logger.Logger.set_format', MagicMock())
     mocker.patch('freqtrade.optimize.hyperopt.Hyperopt.start', start_mock)
     mocker.patch('freqtrade.optimize.hyperopt.hyperopt_optimize_conf',
                  MagicMock(return_value=default_conf))
@@ -72,12 +70,12 @@ def test_start(mocker, default_conf, caplog) -> None:
 
     args = [
         '--config', 'config.json',
-        '--strategy', 'default_strategy',
+        '--strategy', 'DefaultStrategy',
         'hyperopt',
         '--epochs', '5'
     ]
     args = get_args(args)
-    Strategy({'strategy': 'default_strategy'})
+    StrategyResolver({'strategy': 'DefaultStrategy'})
     start(args)
 
     import pprint
@@ -95,7 +93,7 @@ def test_loss_calculation_prefer_correct_trade_count(init_hyperopt) -> None:
     Test Hyperopt.calculate_loss()
     """
     hyperopt = _HYPEROPT
-    Strategy({'strategy': 'default_strategy'})
+    StrategyResolver({'strategy': 'DefaultStrategy'})
 
     correct = hyperopt.calculate_loss(1, hyperopt.target_trades, 20)
     over = hyperopt.calculate_loss(1, hyperopt.target_trades + 100, 20)
@@ -125,7 +123,7 @@ def test_loss_calculation_has_limited_profit(init_hyperopt) -> None:
     assert under > correct
 
 
-def test_log_results_if_loss_improves(init_hyperopt, caplog) -> None:
+def test_log_results_if_loss_improves(capsys) -> None:
     hyperopt = _HYPEROPT
     hyperopt.current_best_loss = 2
     hyperopt.log_results(
@@ -136,7 +134,8 @@ def test_log_results_if_loss_improves(init_hyperopt, caplog) -> None:
             'result': 'foo'
         }
     )
-    assert log_has('    1/2: foo. Loss 1.00000', caplog.record_tuples)
+    out, err = capsys.readouterr()
+    assert '    1/2: foo. Loss 1.00000'in out
 
 
 def test_no_log_if_loss_does_not_improve(init_hyperopt, caplog) -> None:
@@ -184,10 +183,9 @@ def test_fmin_best_results(mocker, init_hyperopt, default_conf, caplog) -> None:
     mocker.patch('freqtrade.optimize.hyperopt.load_data', MagicMock())
     mocker.patch('freqtrade.optimize.hyperopt.fmin', return_value=fmin_result)
     mocker.patch('freqtrade.optimize.hyperopt.hyperopt_optimize_conf', return_value=conf)
-    mocker.patch('freqtrade.logger.Logger.set_format', MagicMock())
     mocker.patch('freqtrade.freqtradebot.exchange.validate_pairs', MagicMock())
 
-    Strategy({'strategy': 'default_strategy'})
+    StrategyResolver({'strategy': 'DefaultStrategy'})
     hyperopt = Hyperopt(conf)
     hyperopt.trials = create_trials(mocker)
     hyperopt.tickerdata_to_dataframe = MagicMock()
@@ -230,10 +228,9 @@ def test_fmin_throw_value_error(mocker, init_hyperopt, default_conf, caplog) -> 
     conf.update({'timerange': None})
     conf.update({'spaces': 'all'})
     mocker.patch('freqtrade.optimize.hyperopt.hyperopt_optimize_conf', return_value=conf)
-    mocker.patch('freqtrade.logger.Logger.set_format', MagicMock())
     mocker.patch('freqtrade.freqtradebot.exchange.validate_pairs', MagicMock())
 
-    Strategy({'strategy': 'default_strategy'})
+    StrategyResolver({'strategy': 'DefaultStrategy'})
     hyperopt = Hyperopt(conf)
     hyperopt.trials = create_trials(mocker)
     hyperopt.tickerdata_to_dataframe = MagicMock()
@@ -274,10 +271,9 @@ def test_resuming_previous_hyperopt_results_succeeds(mocker, init_hyperopt, defa
     mocker.patch('freqtrade.optimize.hyperopt.load_data', MagicMock())
     mocker.patch('freqtrade.optimize.hyperopt.fmin', return_value={})
     mocker.patch('freqtrade.optimize.hyperopt.hyperopt_optimize_conf', return_value=conf)
-    mocker.patch('freqtrade.logger.Logger.set_format', MagicMock())
     mocker.patch('freqtrade.exchange.validate_pairs', MagicMock())
 
-    Strategy({'strategy': 'default_strategy'})
+    StrategyResolver({'strategy': 'DefaultStrategy'})
     hyperopt = Hyperopt(conf)
     hyperopt.trials = trials
     hyperopt.tickerdata_to_dataframe = MagicMock()

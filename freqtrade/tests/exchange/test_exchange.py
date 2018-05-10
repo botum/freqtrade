@@ -4,22 +4,23 @@ import logging
 from copy import deepcopy
 from random import randint
 from unittest.mock import MagicMock, PropertyMock
-import ccxt
 
+import ccxt
 import pytest
 
-from freqtrade import OperationalException, DependencyException, NetworkException
-from freqtrade.exchange import init, validate_pairs, buy, sell, get_balance, get_balances, \
-    get_ticker, get_ticker_history, cancel_order, get_name, get_fee, get_id, get_pair_detail_url
 import freqtrade.exchange as exchange
+from freqtrade import OperationalException, DependencyException, TemporaryError
+from freqtrade.exchange import (init, validate_pairs, buy, sell, get_balance, get_balances,
+                                get_ticker, get_ticker_history, cancel_order, get_name, get_fee,
+                                get_id, get_pair_detail_url, get_amount_lots)
 from freqtrade.tests.conftest import log_has
 
 API_INIT = False
 
 
-def maybe_init_api(conf, mocker):
+def maybe_init_api(conf, mocker, force=False):
     global API_INIT
-    if not API_INIT:
+    if force or not API_INIT:
         mocker.patch('freqtrade.exchange.validate_pairs',
                      side_effect=lambda s: True)
         init(config=conf)
@@ -28,7 +29,7 @@ def maybe_init_api(conf, mocker):
 
 def test_init(default_conf, mocker, caplog):
     caplog.set_level(logging.INFO)
-    maybe_init_api(default_conf, mocker)
+    maybe_init_api(default_conf, mocker, True)
     assert log_has('Instance is running with dry_run enabled', caplog.record_tuples)
 
 
@@ -44,7 +45,7 @@ def test_init_exception(default_conf):
 def test_validate_pairs(default_conf, mocker):
     api_mock = MagicMock()
     api_mock.load_markets = MagicMock(return_value={
-        'ETH/BTC': '', 'TKN/BTC': '', 'TRST/BTC': '', 'SWT/BTC': '', 'BCC/BTC': ''
+        'ETH/BTC': '', 'LTC/BTC': '', 'XRP/BTC': '', 'NEO/BTC': ''
     })
     id_mock = PropertyMock(return_value='test_exchange')
     type(api_mock).id = id_mock
@@ -148,7 +149,7 @@ def test_buy_prod(default_conf, mocker):
         mocker.patch('freqtrade.exchange._API', api_mock)
         buy(pair='ETH/BTC', rate=200, amount=1)
 
-    with pytest.raises(NetworkException):
+    with pytest.raises(TemporaryError):
         api_mock.create_limit_buy_order = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         buy(pair='ETH/BTC', rate=200, amount=1)
@@ -198,7 +199,7 @@ def test_sell_prod(default_conf, mocker):
         mocker.patch('freqtrade.exchange._API', api_mock)
         sell(pair='ETH/BTC', rate=200, amount=1)
 
-    with pytest.raises(NetworkException):
+    with pytest.raises(TemporaryError):
         api_mock.create_limit_sell_order = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         sell(pair='ETH/BTC', rate=200, amount=1)
@@ -262,15 +263,17 @@ def test_get_balances_prod(default_conf, mocker):
     assert get_balances()['1ST']['total'] == 10.0
     assert get_balances()['1ST']['used'] == 0.0
 
-    with pytest.raises(NetworkException):
+    with pytest.raises(TemporaryError):
         api_mock.fetch_balance = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         get_balances()
+    assert api_mock.fetch_balance.call_count == exchange.API_RETRY_COUNT + 1
 
     with pytest.raises(OperationalException):
         api_mock.fetch_balance = MagicMock(side_effect=ccxt.BaseError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         get_balances()
+    assert api_mock.fetch_balance.call_count == 1
 
 
 # This test is somewhat redundant with
@@ -310,7 +313,7 @@ def test_get_ticker(default_conf, mocker):
     assert ticker['bid'] == 0.5
     assert ticker['ask'] == 1
 
-    with pytest.raises(OperationalException):  # test retrier
+    with pytest.raises(TemporaryError):  # test retrier
         api_mock.fetch_ticker = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         get_ticker(pair='ETH/BTC', refresh=True)
@@ -319,6 +322,15 @@ def test_get_ticker(default_conf, mocker):
         api_mock.fetch_ticker = MagicMock(side_effect=ccxt.BaseError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         get_ticker(pair='ETH/BTC', refresh=True)
+
+
+def make_fetch_ohlcv_mock(data):
+    def fetch_ohlcv_mock(pair, timeframe, since):
+        if since:
+            assert since > data[-1][0]
+            return []
+        return data
+    return fetch_ohlcv_mock
 
 
 def test_get_ticker_history(default_conf, mocker):
@@ -334,7 +346,7 @@ def test_get_ticker_history(default_conf, mocker):
         ]
     ]
     type(api_mock).has = PropertyMock(return_value={'fetchOHLCV': True})
-    api_mock.fetch_ohlcv = MagicMock(return_value=tick)
+    api_mock.fetch_ohlcv = MagicMock(side_effect=make_fetch_ohlcv_mock(tick))
     mocker.patch('freqtrade.exchange._API', api_mock)
 
     # retrieve original ticker
@@ -357,7 +369,7 @@ def test_get_ticker_history(default_conf, mocker):
             10,  # volume (in quote currency)
         ]
     ]
-    api_mock.fetch_ohlcv = MagicMock(return_value=new_tick)
+    api_mock.fetch_ohlcv = MagicMock(side_effect=make_fetch_ohlcv_mock(new_tick))
     mocker.patch('freqtrade.exchange._API', api_mock)
 
     ticks = get_ticker_history('ETH/BTC', default_conf['ticker_interval'])
@@ -368,7 +380,7 @@ def test_get_ticker_history(default_conf, mocker):
     assert ticks[0][4] == 9
     assert ticks[0][5] == 10
 
-    with pytest.raises(OperationalException):  # test retrier
+    with pytest.raises(TemporaryError):  # test retrier
         api_mock.fetch_ohlcv = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         # new symbol to get around cache
@@ -397,20 +409,23 @@ def test_cancel_order(default_conf, mocker):
     mocker.patch('freqtrade.exchange._API', api_mock)
     assert cancel_order(order_id='_', pair='TKN/BTC') == 123
 
-    with pytest.raises(NetworkException):
+    with pytest.raises(TemporaryError):
         api_mock.cancel_order = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         cancel_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.cancel_order.call_count == exchange.API_RETRY_COUNT + 1
 
     with pytest.raises(DependencyException):
         api_mock.cancel_order = MagicMock(side_effect=ccxt.InvalidOrder)
         mocker.patch('freqtrade.exchange._API', api_mock)
         cancel_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.cancel_order.call_count == exchange.API_RETRY_COUNT + 1
 
     with pytest.raises(OperationalException):
         api_mock.cancel_order = MagicMock(side_effect=ccxt.BaseError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         cancel_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.cancel_order.call_count == 1
 
 
 def test_get_order(default_conf, mocker):
@@ -429,20 +444,23 @@ def test_get_order(default_conf, mocker):
     mocker.patch('freqtrade.exchange._API', api_mock)
     assert exchange.get_order('X', 'TKN/BTC') == 456
 
-    with pytest.raises(NetworkException):
+    with pytest.raises(TemporaryError):
         api_mock.fetch_order = MagicMock(side_effect=ccxt.NetworkError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         exchange.get_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.fetch_order.call_count == exchange.API_RETRY_COUNT + 1
 
     with pytest.raises(DependencyException):
         api_mock.fetch_order = MagicMock(side_effect=ccxt.InvalidOrder)
         mocker.patch('freqtrade.exchange._API', api_mock)
         exchange.get_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.fetch_order.call_count == exchange.API_RETRY_COUNT + 1
 
     with pytest.raises(OperationalException):
         api_mock.fetch_order = MagicMock(side_effect=ccxt.BaseError)
         mocker.patch('freqtrade.exchange._API', api_mock)
         exchange.get_order(order_id='_', pair='TKN/BTC')
+    assert api_mock.fetch_order.call_count == 1
 
 
 def test_get_name(default_conf, mocker):
@@ -499,3 +517,10 @@ def test_get_fee(default_conf, mocker):
     })
     mocker.patch('freqtrade.exchange._API', api_mock)
     assert get_fee() == 0.025
+
+
+def test_get_amount_lots(default_conf, mocker):
+    api_mock = MagicMock()
+    api_mock.amount_to_lots = MagicMock(return_value=1.0)
+    mocker.patch('freqtrade.exchange._API', api_mock)
+    assert get_amount_lots('LTC/BTC', 1.54) == 1

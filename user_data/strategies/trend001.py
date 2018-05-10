@@ -16,7 +16,7 @@ class_name = 'DefaultStrategy'
 
 # pair = 'ETH/BTC'
 
-class DefaultStrategy(IStrategy):
+class trend001(IStrategy):
     """
     Default Strategy provided by freqtrade bot.
     You can override it with your own strategy
@@ -286,9 +286,9 @@ class DefaultStrategy(IStrategy):
                 # )
                 # &
                 (
-                (dataframe['close'] < dataframe['st']*1.005)
+                (dataframe['close'] < dataframe['st']*1.001)
                 &
-                (dataframe['rt'] > dataframe['st']*1.02)
+                (dataframe['rt'] > dataframe['st']*1.03)
                 )
                 # buy breakout?
                 |

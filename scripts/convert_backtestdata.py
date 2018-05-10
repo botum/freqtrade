@@ -10,7 +10,7 @@ Optional Cli parameters
 --timerange: specify what timerange of data to use.
 -l / --live: Live, to download the latest ticker for the pair
 """
-
+import logging
 import sys
 from argparse import Namespace
 from os import path
@@ -21,14 +21,12 @@ from typing import List, Dict
 import gzip
 
 from freqtrade.arguments import Arguments
-from freqtrade import misc
-from freqtrade.logger import Logger
+from freqtrade import misc, constants
 from pandas import DataFrame
-from freqtrade.constants import Constants
 
 import dateutil.parser
 
-logger = Logger(name="freqtrade").get_logger()
+logger = logging.getLogger('freqtrade')
 
 
 def load_old_file(filename) -> (List[Dict], bool):
@@ -70,7 +68,7 @@ def parse_old_backtest_data(ticker) -> DataFrame:
         .rename(columns=columns)
     if 'BV' in frame:
         frame.drop('BV', 1, inplace=True)
-    if not 'date' in frame:
+    if 'date' not in frame:
         logger.warning("Date not in frame - probably not a Ticker file")
         return None
     frame.sort_values('date', inplace=True)
@@ -137,9 +135,10 @@ def convert_main(args: Namespace) -> None:
 
             if ret_integer:
                 minutes = int(ret_integer.group(0))
-                interval = str(minutes) + 'm'  # default to adding 'm' to end of minutes for new interval name
+                # default to adding 'm' to end of minutes for new interval name
+                interval = str(minutes) + 'm'
                 # but check if there is a mapping between int and string also
-                for str_interval, minutes_interval in Constants.TICKER_INTERVAL_MINUTES.items():
+                for str_interval, minutes_interval in constants.TICKER_INTERVAL_MINUTES.items():
                     if minutes_interval == minutes:
                         interval = str_interval
                         break

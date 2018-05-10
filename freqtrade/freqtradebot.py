@@ -3,7 +3,7 @@ Freqtrade is the main module of this bot. It contains the class Freqtrade()
 """
 
 import copy
-import json
+import logging
 import time
 import traceback
 from datetime import datetime
@@ -11,16 +11,20 @@ from typing import Dict, List, Optional, Any, Callable
 
 import arrow
 import requests
-from cachetools import cached, TTLCache
+from cachetools import TTLCache, cached
 
-from freqtrade import (DependencyException, OperationalException, exchange, persistence)
+from freqtrade import (
+    DependencyException, OperationalException, TemporaryError,
+    exchange, persistence, __version__,
+)
+from freqtrade import constants
 from freqtrade.analyze import Analyze
-from freqtrade.constants import Constants
 from freqtrade.fiat_convert import CryptoToFiatConverter
-from freqtrade.logger import Logger
 from freqtrade.persistence import Trade, Pair
 from freqtrade.rpc.rpc_manager import RPCManager
 from freqtrade.state import State
+
+logger = logging.getLogger(__name__)
 
 
 class FreqtradeBot(object):
@@ -37,8 +41,10 @@ class FreqtradeBot(object):
         :param db_url: database connector string for sqlalchemy (Optional)
         """
 
-        # Init the logger
-        self.logger = Logger(name=__name__, level=config.get('loglevel')).get_logger()
+        logger.info(
+            'Starting freqtrade %s',
+            __version__,
+        )
 
         # Init bot states
         self.state = State.STOPPED
@@ -81,7 +87,7 @@ class FreqtradeBot(object):
         :return: None
         """
         self.rpc.send_msg('*Status:* `Stopping trader...`')
-        self.logger.info('Stopping trader and cleaning up modules...')
+        logger.info('Stopping trader and cleaning up modules...')
         self.state = State.STOPPED
         self.rpc.cleanup()
         persistence.cleanup()
@@ -97,14 +103,14 @@ class FreqtradeBot(object):
         state = self.state
         if state != old_state:
             self.rpc.send_msg('*Status:* `{}`'.format(state.name.lower()))
-            self.logger.info('Changing state to: %s', state.name)
+            logger.info('Changing state to: %s', state.name)
 
         if state == State.STOPPED:
             time.sleep(1)
         elif state == State.RUNNING:
             min_secs = self.config.get('internals', {}).get(
                 'process_throttle_secs',
-                Constants.PROCESS_THROTTLE_SECS
+                constants.PROCESS_THROTTLE_SECS
             )
 
             nb_assets = self.config.get('dynamic_whitelist', None)
@@ -126,7 +132,7 @@ class FreqtradeBot(object):
         result = func(*args, **kwargs)
         end = time.time()
         duration = max(min_secs - (end - start), 0.0)
-        self.logger.debug('Throttling %s for %.2f seconds', func.__name__, duration)
+        logger.debug('Throttling %s for %.2f seconds', func.__name__, duration)
         time.sleep(duration)
         return result
 
@@ -166,9 +172,9 @@ class FreqtradeBot(object):
                 self.check_handle_timedout(self.config['unfilledtimeout'])
                 Trade.session.flush()
 
-        except (requests.exceptions.RequestException, json.JSONDecodeError) as error:
-            self.logger.warning('%s, retrying in 30 seconds...', error)
-            time.sleep(Constants.RETRY_TIMEOUT)
+        except TemporaryError as error:
+            logger.warning('%s, retrying in 30 seconds...', error)
+            time.sleep(constants.RETRY_TIMEOUT)
         except OperationalException:
             self.rpc.send_msg(
                 '*Status:* OperationalException:\n```\n{traceback}```{hint}'
@@ -177,7 +183,7 @@ class FreqtradeBot(object):
                     hint='Issue `/start` if you think it is safe to restart.'
                 )
             )
-            self.logger.exception('OperationalException. Stopping trader ...')
+            logger.exception('OperationalException. Stopping trader ...')
             self.state = State.STOPPED
         return state_changed
 
@@ -274,7 +280,7 @@ class FreqtradeBot(object):
         stake_amount = self.config['stake_amount']
         interval = self.analyze.get_ticker_interval()
 
-        self.logger.info(
+        logger.info(
             'Checking buy signals to create a new trade with stake_amount: %f ...',
             stake_amount
         )
@@ -289,12 +295,12 @@ class FreqtradeBot(object):
         for trade in Trade.query.filter(Trade.is_open.is_(True)).all():
             if trade.pair in whitelist:
                 whitelist.remove(trade.pair)
-                self.logger.debug('Ignoring %s in pair whitelist', trade.pair)
+                logger.debug('Ignoring %s in pair whitelist', trade.pair)
 
         if not whitelist:
             raise DependencyException('No currency pairs in whitelist')
 
-        # Pick pair based on StochRSI buy signals
+        # Pick pair based on buy signals
         for _pair in whitelist:
             (buy, sell) = self.analyze.get_signal(_pair, interval)
             if buy and not sell:
@@ -330,11 +336,13 @@ class FreqtradeBot(object):
             )
         )
         # Fee is applied twice because we make a LIMIT_BUY and LIMIT_SELL
+        fee = exchange.get_fee(symbol=pair, taker_or_maker='maker')
         trade = Trade(
             pair=pair,
             stake_amount=stake_amount,
             amount=amount,
-            fee=exchange.get_fee(taker_or_maker='maker'),
+            fee_open=fee,
+            fee_close=fee,
             open_rate=buy_limit,
             open_date=datetime.utcnow(),
             exchange=exchange.get_id(),
@@ -354,10 +362,10 @@ class FreqtradeBot(object):
             if self.create_trade():
                 return True
 
-            self.logger.info('Found no buy signals for whitelisted currencies. Trying again..')
+            logger.info('Found no buy signals for whitelisted currencies. Trying again..')
             return False
         except DependencyException as exception:
-            self.logger.warning('Unable to create trade: %s', exception)
+            logger.warning('Unable to create trade: %s', exception)
             return False
 
     def process_maybe_execute_sell(self, trade: Trade) -> bool:
@@ -365,16 +373,73 @@ class FreqtradeBot(object):
         Tries to execute a sell trade
         :return: True if executed
         """
-        # Get order details for actual price per unit
-        if trade.open_order_id:
-            # Update trade with order values
-            self.logger.info('Found open order for %s', trade)
-            trade.update(exchange.get_order(trade.open_order_id, trade.pair))
+        try:
+            # Get order details for actual price per unit
+            if trade.open_order_id:
+                # Update trade with order values
+                logger.info('Found open order for %s', trade)
+                order = exchange.get_order(trade.open_order_id, trade.pair)
+                # Try update amount (binance-fix)
+                try:
+                    new_amount = self.get_real_amount(trade, order)
+                    if order['amount'] != new_amount:
+                        order['amount'] = new_amount
+                        # Fee was applied, so set to 0
+                        trade.fee_open = 0
 
-        if trade.is_open and trade.open_order_id is None:
-            # Check if we can sell our current pair
-            return self.handle_trade(trade)
+                except OperationalException as exception:
+                    logger.warning("could not update trade amount: %s", exception)
+
+                trade.update(order)
+
+            if trade.is_open and trade.open_order_id is None:
+                # Check if we can sell our current pair
+                return self.handle_trade(trade)
+        except DependencyException as exception:
+            logger.warning('Unable to sell trade: %s', exception)
         return False
+
+    def get_real_amount(self, trade: Trade, order: Dict) -> float:
+        """
+        Get real amount for the trade
+        Necessary for exchanges which charge fees in base currency (e.g. binance)
+        """
+        order_amount = order['amount']
+        # Only run for closed orders
+        if trade.fee_open == 0 or order['status'] == 'open':
+            return order_amount
+
+        # use fee from order-dict if possible
+        if 'fee' in order and order['fee']:
+            if trade.pair.startswith(order['fee']['currency']):
+                new_amount = order_amount - order['fee']['cost']
+                logger.info("Applying fee on amount for %s (from %s to %s) from Order",
+                            trade, order['amount'], new_amount)
+                return new_amount
+
+        # Fallback to Trades
+        trades = exchange.get_trades_for_order(trade.open_order_id, trade.pair, trade.open_date)
+
+        if len(trades) == 0:
+            logger.info("Applying fee on amount for %s failed: myTrade-Dict empty found", trade)
+            return order_amount
+        amount = 0
+        fee_abs = 0
+        for exectrade in trades:
+            amount += exectrade['amount']
+            if "fee" in exectrade:
+                # only applies if fee is in quote currency!
+                if trade.pair.startswith(exectrade['fee']['currency']):
+                    fee_abs += exectrade['fee']['cost']
+
+        if amount != order_amount:
+            logger.warning("amount {} does not match amount {}".format(amount, trade.amount))
+            raise OperationalException("Half bought? Amounts don't match")
+        real_amount = amount - fee_abs
+        if fee_abs != 0:
+            logger.info("Applying fee on amount for {} (from {} to {}) from Trades".format(
+                        trade, order['amount'], real_amount))
+        return real_amount
 
     def handle_trade(self, trade: Trade) -> bool:
         """
@@ -384,7 +449,7 @@ class FreqtradeBot(object):
         if not trade.is_open:
             raise ValueError('attempt to handle closed trade: {}'.format(trade))
 
-        self.logger.debug('Handling %s ...', trade)
+        logger.debug('Handling %s ...', trade)
         current_rate = exchange.get_ticker(trade.pair)['bid']
 
         (buy, sell) = (False, False)
@@ -395,7 +460,7 @@ class FreqtradeBot(object):
         if self.analyze.should_sell(trade, current_rate, datetime.utcnow(), buy, sell):
             self.execute_sell(trade, current_rate)
             return True
-
+        logger.info('Found no sell signals for whitelisted currencies. Trying again..')
         return False
 
     def check_handle_timedout(self, timeoutvalue: int) -> None:
@@ -410,7 +475,7 @@ class FreqtradeBot(object):
             try:
                 order = exchange.get_order(trade.open_order_id, trade.pair)
             except requests.exceptions.RequestException:
-                self.logger.info(
+                logger.info(
                     'Cannot query order for %s due to %s',
                     trade,
                     traceback.format_exc())
@@ -433,14 +498,14 @@ class FreqtradeBot(object):
         """Buy timeout - cancel order
         :return: True if order was fully cancelled
         """
-        exchange.cancel_order(trade.open_order_id)
+        exchange.cancel_order(trade.open_order_id, trade.pair)
         if order['remaining'] == order['amount']:
             # if trade is not partially completed, just delete the trade
             Trade.session.delete(trade)
             # FIX? do we really need to flush, caller of
             #      check_handle_timedout will flush afterwards
             Trade.session.flush()
-            self.logger.info('Buy order timeout for %s.', trade)
+            logger.info('Buy order timeout for %s.', trade)
             self.rpc.send_msg('*Timeout:* Unfilled buy order for {} cancelled'.format(
                 trade.pair.replace('_', '/')))
             return True
@@ -450,7 +515,7 @@ class FreqtradeBot(object):
         trade.amount = order['amount'] - order['remaining']
         trade.stake_amount = trade.amount * trade.open_rate
         trade.open_order_id = None
-        self.logger.info('Partial buy order timeout for %s.', trade)
+        logger.info('Partial buy order timeout for %s.', trade)
         self.rpc.send_msg('*Timeout:* Remaining buy order for {} cancelled'.format(
             trade.pair.replace('_', '/')))
         return False
@@ -463,7 +528,7 @@ class FreqtradeBot(object):
         """
         if order['remaining'] == order['amount']:
             # if trade is not partially completed, just cancel the trade
-            exchange.cancel_order(trade.open_order_id)
+            exchange.cancel_order(trade.open_order_id, trade.pair)
             trade.close_rate = None
             trade.close_profit = None
             trade.close_date = None
@@ -471,7 +536,7 @@ class FreqtradeBot(object):
             trade.open_order_id = None
             self.rpc.send_msg('*Timeout:* Unfilled sell order for {} cancelled'.format(
                 trade.pair.replace('_', '/')))
-            self.logger.info('Sell order timeout for %s.', trade)
+            logger.info('Sell order timeout for %s.', trade)
             return True
 
         # TODO: figure out how to handle partially complete sell orders

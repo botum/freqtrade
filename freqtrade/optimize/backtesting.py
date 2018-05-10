@@ -3,11 +3,13 @@
 """
 This module contains the backtesting logic
 """
+import logging
+import operator
 from argparse import Namespace
 from typing import Dict, Tuple, Any, List, Optional
 
 import arrow
-from pandas import DataFrame, Series
+from pandas import DataFrame
 from tabulate import tabulate
 
 import freqtrade.optimize as optimize
@@ -15,9 +17,10 @@ from freqtrade import exchange
 from freqtrade.analyze import Analyze
 from freqtrade.arguments import Arguments
 from freqtrade.configuration import Configuration
-from freqtrade.logger import Logger
 from freqtrade.misc import file_dump_json
 from freqtrade.persistence import Trade
+
+logger = logging.getLogger(__name__)
 
 
 class Backtesting(object):
@@ -29,10 +32,6 @@ class Backtesting(object):
     backtesting.start()
     """
     def __init__(self, config: Dict[str, Any]) -> None:
-
-        # Init the logger
-        self.logging = Logger(name=__name__, level=config['loglevel'])
-        self.logger = self.logging.get_logger()
         self.config = config
         self.analyze = None
         self.ticker_interval = None
@@ -71,11 +70,12 @@ class Backtesting(object):
         :param data: dictionary with preprocessed backtesting data
         :return: tuple containing min_date, max_date
         """
-        all_dates = Series([])
-        for pair_data in data.values():
-            all_dates = all_dates.append(pair_data['date'])
-        all_dates.sort_values(inplace=True)
-        return arrow.get(all_dates.iloc[0]), arrow.get(all_dates.iloc[-1])
+        timeframe = [
+            (arrow.get(min(frame.date)), arrow.get(max(frame.date)))
+            for frame in data.values()
+        ]
+        return min(timeframe, key=operator.itemgetter(0))[0], \
+            max(timeframe, key=operator.itemgetter(1))[1]
 
     def _generate_text_table(self, data: Dict[str, Dict], results: DataFrame) -> str:
         """
@@ -118,12 +118,14 @@ class Backtesting(object):
 
         stake_amount = args['stake_amount']
         max_open_trades = args.get('max_open_trades', 0)
+        fee = exchange.get_fee()
         trade = Trade(
             open_rate=buy_row.close,
             open_date=buy_row.date,
             stake_amount=stake_amount,
             amount=stake_amount / buy_row.open,
-            fee=exchange.get_fee()
+            fee_open=fee,
+            fee_close=fee
         )
 
         # calculate win/lose forwards from buy point
@@ -204,13 +206,13 @@ class Backtesting(object):
                         # record a tuple of pair, current_profit_percent,
                         # entry-date, duration
                         records.append((pair, trade_entry[1],
-                                        row.date.timestamp(),
-                                        row2.date.timestamp(),
-                                        row.date, trade_entry[3]))
+                                        row.date.strftime('%s'),
+                                        row2.date.strftime('%s'),
+                                        index, trade_entry[3]))
         # For now export inside backtest(), maybe change so that backtest()
         # returns a tuple like: (dataframe, records, logs, etc)
         if record and record.find('trades') >= 0:
-            self.logger.info('Dumping backtest results')
+            logger.info('Dumping backtest results')
             file_dump_json('backtest-result.json', records)
         labels = ['currency', 'profit_percent', 'profit_BTC', 'duration']
         return DataFrame.from_records(trades, columns=labels)
@@ -222,15 +224,15 @@ class Backtesting(object):
         """
         data = {}
         pairs = self.config['exchange']['pair_whitelist']
-        self.logger.info('Using stake_currency: %s ...', self.config['stake_currency'])
-        self.logger.info('Using stake_amount: %s ...', self.config['stake_amount'])
+        logger.info('Using stake_currency: %s ...', self.config['stake_currency'])
+        logger.info('Using stake_amount: %s ...', self.config['stake_amount'])
 
         if self.config.get('live'):
-            self.logger.info('Downloading data for all pairs in whitelist ...')
+            logger.info('Downloading data for all pairs in whitelist ...')
             for pair in pairs:
                 data[pair] = exchange.get_ticker_history(pair, self.ticker_interval)
         else:
-            self.logger.info('Using local backtesting data (using whitelist in given config) ...')
+            logger.info('Using local backtesting data (using whitelist in given config) ...')
 
             timerange = Arguments.parse_timerange(self.config.get('timerange'))
             data = optimize.load_data(
@@ -245,14 +247,14 @@ class Backtesting(object):
         if self.config.get('realistic_simulation', False):
             max_open_trades = self.config['max_open_trades']
         else:
-            self.logger.info('Ignoring max_open_trades (realistic_simulation not set) ...')
+            logger.info('Ignoring max_open_trades (realistic_simulation not set) ...')
             max_open_trades = 0
 
         preprocessed = self.tickerdata_to_dataframe(data)
 
         # Print timeframe
         min_date, max_date = self.get_timeframe(preprocessed)
-        self.logger.info(
+        logger.info(
             'Measuring data from %s up to %s (%s days)..',
             min_date.isoformat(),
             max_date.isoformat(),
@@ -273,9 +275,7 @@ class Backtesting(object):
                 'record': self.config.get('export')
             }
         )
-
-        self.logging.set_format('%(message)s')
-        self.logger.info(
+        logger.info(
             '\n==================================== '
             'BACKTESTING REPORT'
             ' ====================================\n'
@@ -309,13 +309,9 @@ def start(args: Namespace) -> None:
     :param args: Cli args from Arguments()
     :return: None
     """
-
-    # Initialize logger
-    logger = Logger(name=__name__).get_logger()
-    logger.info('Starting freqtrade in Backtesting mode')
-
     # Initialize configuration
     config = setup_configuration(args)
+    logger.info('Starting freqtrade in Backtesting mode')
 
     # Initialize backtesting object
     backtesting = Backtesting(config)

@@ -3,18 +3,15 @@
 Main Freqtrade bot script.
 Read the documentation to know what cli arguments you need.
 """
-
 import logging
 import sys
 from typing import List
 
-from freqtrade import (__version__)
 from freqtrade.arguments import Arguments
 from freqtrade.configuration import Configuration
 from freqtrade.freqtradebot import FreqtradeBot
-from freqtrade.logger import Logger
 
-logger = Logger(name='freqtrade').get_logger()
+logger = logging.getLogger('freqtrade')
 
 
 def main(sysargv: List[str]) -> None:
@@ -32,20 +29,16 @@ def main(sysargv: List[str]) -> None:
     # Means if Backtesting or Hyperopt have been called we exit the bot
     if hasattr(args, 'func'):
         args.func(args)
-        return 0
+        return
 
-    logger.info(
-        'Starting freqtrade %s (loglevel=%s)',
-        __version__,
-        logging.getLevelName(args.loglevel)
-    )
-
+    freqtrade = None
+    return_code = 1
     try:
         # Load and validate configuration
-        configuration = Configuration(args)
+        config = Configuration(args).get_config()
 
         # Init the bot
-        freqtrade = FreqtradeBot(configuration.get_config())
+        freqtrade = FreqtradeBot(config)
 
         state = None
         while 1:
@@ -53,11 +46,13 @@ def main(sysargv: List[str]) -> None:
 
     except KeyboardInterrupt:
         logger.info('SIGINT received, aborting ...')
+        return_code = 0
     except BaseException:
         logger.exception('Fatal exception!')
     finally:
-        freqtrade.clean()
-        sys.exit(0)
+        if freqtrade:
+            freqtrade.clean()
+        sys.exit(return_code)
 
 
 def set_loggers() -> None:
