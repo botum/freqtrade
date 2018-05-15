@@ -12,6 +12,7 @@ Optional Cli parameters
 -l / --live: Live, to download the latest ticker for the pair
 """
 
+import logging
 import sys
 from argparse import Namespace
 
@@ -24,7 +25,6 @@ import plotly.graph_objs as go
 from freqtrade.arguments import Arguments
 from freqtrade.analyze import Analyze
 from freqtrade import exchange
-from freqtrade.logger import Logger
 import freqtrade.optimize as optimize
 from freqtrade.indicators import get_trend_lines
 # from scripts import trendy_2 as trendy
@@ -32,7 +32,7 @@ from freqtrade.indicators import get_trend_lines
 import numpy as np
 
 
-logger = Logger(name="Graph dataframe").get_logger()
+logger = logging.getLogger(__name__)
 
 
 def plot_analyzed_dataframe(args: Namespace) -> None:

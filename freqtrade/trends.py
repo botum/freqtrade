@@ -8,6 +8,10 @@ from datetime import datetime
 
 from scipy import linspace, polyval, polyfit, sqrt, stats, randn
 from pylab import plot, title, show , legend
+
+from freqtrade import (DependencyException, OperationalException, exchange, persistence)
+from freqtrade.configuration import Configuration
+# from freqtrade.persistence import Trade, Pair, Trend
 from freqtrade.indicators import in_range
 # import operator
 
@@ -32,17 +36,51 @@ def plot_pivots(X, L, H, pivots):
 #     plt.show()
     pass
 
+def plot_trends(df, filename: str=None):
+    plt.figure(num=0, figsize=(20,10))
+    plt.xlim(0, len(df.close))
+    plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
+
+    plt.plot(df.index, df['rt'], 'r', label='resistance trend', linewidth=2)
+    plt.plot(df.index, df['st'], 'g', label='support trend', linewidth=2)
+
+    plt.plot(df.high, 'r', alpha=0.5)
+    plt.plot(df.close, 'k', alpha=0.5)
+    plt.plot(df.low, 'g', alpha=0.5)
+
+    plt.plot(df.bb_lowerband, 'b', alpha=0.5, linewidth=2)
+    plt.plot(df.bb_upperband, 'b', alpha=0.5, linewidth=2)
+
+    pivot = [col for col in df if col.startswith('trend-')]
+    # support = df[df['ids'].str.contains('ball', na = False)]
+    # print(pivot)
+    # print (pivots['sup'])
+    for piv in pivot:
+        plt.plot(df.index, df[piv], 'k', label='support trend', alpha=0.5, linewidth=1)
+
+    # macd = go.Scattergl(x=data['date'], y=data['macd'], name='MACD')
+    # macdsignal = go.Scattergl(x=data['date'], y=data['macdsignal'], name='MACD signal')
+    # volume = go.Bar(x=data['date'], y=data['volume'], name='Volume')
+
+    plot_pivots(df.close.values, df.low.values, df.high.values, df.pivots.values)
+
+    plt.figure(num=0, figsize=(20,10))
+    plt.xlim(0, len(df.close))
+    plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
+
+    # print(pair)
+    if not filename:
+        filename = 'chart_plots/' + 'UNKNOWN-PAIR' + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
+    # print('saving file: ', filename)
+    plt.savefig(filename)
+    plt.close()
+    # plot_pivots(df.close.values, df.low.values, df.high.values, pivots)
+    # legend(['pivots','trend', 'close'])
+    # plt.show()
+
 def get_tests(df, trend_name, pt, first):
 
-    trends['name'].append(trend_name)
     trend = df[trend_name]
-    # pivot type
-    if first:
-        trends['first'].append(1)
-    else:
-        trends['first'].append(0)
-
-    trends['last'].append(0)
 
     if pt == 'res':
         tolerance = 0.001
@@ -54,29 +92,31 @@ def get_tests(df, trend_name, pt, first):
     trend_tests = len(t_r)
 #     trends['trend'].append(trend)
 #     print(trend_name)
-    trends['tests'].append(trend_tests)
-    trends['type'].append(pt)
-    return t_r
 
-def gentrends(df, charts=False, pair='default_filename_plot'):
+    return trend_tests
+
+def gentrends(self, df, charts=False, pair='default_filename_plot'):
+    # config = Configuration.get_config(self)
+    # persistence.init(config)
+    #
+    # current_trends = Trend.query.filter(Trend.pair.is_(pair)).all()
+    # print ('current: ', current_trends)
 
     h = df.loc[df['pivots']==1]
     l = df.loc[df['pivots']==-1]
 
     df_orig = df
 
+    print (pair)
     print (len(df))
     print (len(h))
     print (len(l))
 
     global trends
-    trends = {'name':[], 'tests':[], 'type':[], 'first':[], 'last':[]}
+    trends = list()
 
-
-    if charts:
-        plt.figure(num=0, figsize=(30,5))
-        plt.xlim(0, len(df.close))
-        plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
+    id_max = h[:-1].high.values.argmax()
+    id_min = l[:-1].low.values.argmin()
 
     for i in range(0, len(h) -1):
 
@@ -86,12 +126,11 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
         by = h.iloc[i+1].high
         t = df.index[ax:]
         # print (h)
-        id_max = h[:-1].high.values.argmax()
         # print (id_max, len(h))
 
-        trend_name = 't_r'+str(ax)+'-'+str(bx)
 
         slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
+        trend_name = 't_r|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
         trend = polyval([slope,intercept],t)
         df.loc[h.index[i]:,trend_name] = trend
         # plt.plot(df.index, df[trend_name], 'm', label='misterious', alpha=0.1)
@@ -101,8 +140,29 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
 
         next_waves = h[i+2:]
         is_last = len(next_waves[i:])==1
-        get_tests(df, trend_name, 'res', True)
+        trend_tests = get_tests(df, trend_name, 'res', True)
         # print (trend_name, '- A: ', ay, 'B: ', by, '-------------------------------------------------')
+
+        trend = {'name':trend_name,
+                'timeframe':'all',
+                'a':[ax, ay, df.iloc[ax].date],
+                'b':[bx, by, df.iloc[bx].date],
+                'slope':slope,
+                'conf_n':trend_tests,
+                'type':'res'}
+        trends.append(trend)
+        # trend_obj = Trend(
+        #     pair=pair,
+        #     type = 'res',
+        #     timeframe = '1m',
+        #     a = (df.iloc[ax].date, ay),
+        #     b = (df.iloc[bx].date, by),
+        #     slope = slope,
+        #     conf_n = trend_tests
+        # )
+        # Trend.session.add(trend_obj)
+        # Trend.session.flush()
+
 
 #         next_waves = df.loc[df['pivots']==1][i+1:]
         for ib in range(0, len(next_waves)):
@@ -118,14 +178,38 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
                 t = df.index[h.index[i]:]
                 slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
                 trend_next_wave = polyval([slope,intercept],t)
-                trend_name = 't_r'+str(ax)+'-'+str(bx)
+                trend_name = 't_r|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
                 df.loc[h.index[i]:,trend_name] = trend_next_wave
 #                 plt.plot(t, trend_next_wave, 'r', label=trend_name, alpha=0.3)
-                get_tests(df, trend_name, 'res', False)
+                trend_tests = get_tests(df, trend_name, 'res', False)
+                trend = {'name':trend_name,
+                        'timeframe':'all',
+                        'a':[ax, ay, df.iloc[ax].date],
+                        'b':[bx, by, df.iloc[bx].date],
+                        'slope':slope,
+                        'conf_n':trend_tests,
+                        'type':'res'}
+                trends.append(trend)
+
+            trends[-1]['last'] = True
+
         if i == id_max:
             df_orig['rt'] = df[trend_name]
-            # print (trend_name)
-        trends['last'][-1] = 1
+
+            trends[-1]['max'] = True
+
+            # trend_obj = Trend(
+            #     pair=pair,
+            #     type = 'res',
+            #     timeframe = '1m',
+            #     a = (df.iloc[ax].date, ay),
+            #     b = (df.iloc[bx].date, by),
+            #     slope = slope,
+            #     conf_n = trend_tests
+            # )
+            # Trend.session.add(trend_obj)
+            # Trend.session.flush()
+
 
     for i in range(0, len(l) -1):
 
@@ -136,12 +220,10 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
         by = l.iloc[i+1].low
         t = df.index[ax:]
 
-        id_min = l[:-1].low.values.argmin()
-
         slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
         trend_l = polyval([slope,intercept],t)
         # plt.plot(t, trend, 'm', label='fitted line', alpha=0.5)
-        trend_name = 't_s'+str(ax)+'-'+str(bx)
+        trend_name = 't_s|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
         df.loc[l.index[i]:,trend_name] = trend_l
         # plt.plot(df.index, df[trend_name], 'm', label='misterious', alpha=0.2)
 
@@ -150,7 +232,30 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
         # print (trend_name)
         next_waves = l[i+2:]
         is_last = len(next_waves[i:])==1
-        get_tests(df, trend_name, 'sup', True)
+        trend_tests = get_tests(df, trend_name, 'sup', True)
+
+
+        trend = {
+            'name':trend_name,
+            'timeframe':'all',
+            'a':[ax, ay, df.iloc[ax].date],
+            'b':[bx, by, df.iloc[bx].date],
+            'slope':slope,
+            'conf_n':trend_tests,
+            'type':'sup'}
+        trends.append(trend)
+        # trend_obj = Trend(
+        #     pair=pair,
+        #     type = 'sup',
+        #     timeframe = '1m',
+        #     a = (df.iloc[ax].date, ay),
+        #     b = (df.iloc[bx].date, by),
+        #     slope = slope,
+        #     conf_n = trend_tests
+        # )
+        # Trend.session.add(trend_obj)
+        # Trend.session.flush()
+
     #     tolerance = 0.001
     #     test_r = df.loc[df['pivots']==-1 & in_range(df['low'],df[trend_name], tolerance)]
     #     trend_tests = len(test_r)
@@ -172,16 +277,43 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
                 t = df.index[l.index[i]:]
                 slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
                 trend_next_wave = polyval([slope,intercept],t)
-                trend_name = 't_s'+str(ax)+'-'+str(bx)
+                trend_name = 't_s|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
                 df.loc[l.index[i]:,trend_name] = trend_next_wave
-                get_tests(df, trend_name, 'sup', False)
+                trend_tests = get_tests(df, trend_name, 'sup', False)
+                trend = {
+                    'name':trend_name,
+                    'timeframe':'all',
+                    'a':[ax, ay, df.iloc[ax].date],
+                    'b':[bx, by, df.iloc[bx].date],
+                    'slope':slope,
+                    'conf_n':trend_tests,
+                    'type':'sup',
+                    'last':True}
+                trends.append(trend)
+
 #                 plt.plot(t, trend_next_wave, 'g', label='fitted line', alpha=0.3)
+
+        trends[-1]['last'] = True
+
         if i == id_min:
             # print ('sup: ', trend_name)
             df_orig['st'] = df[trend_name]
-        trends['last'][-1] = 1
+            # trends['last'][-1] = 1
+            trends[-1]['min'] = True
 
-    trends_df = DataFrame(data=trends).sort_values('tests', ascending=False)
+            # trend_obj = Trend(
+            #     pair=pair,
+            #     type = 'sup',
+            #     timeframe = '1m',
+            #     a = (df.iloc[ax].date, ay),
+            #     b = (df.iloc[bx].date, by),
+            #     slope = slope,
+            #     conf_n = trend_tests
+            # )
+            # Trend.session.add(trend_obj)
+            # Trend.session.flush()
+
+    # trends_df = DataFrame(data=trends).sort_values('tests', ascending=False)
     # print (trends['type'] == 'res')
 #     above_mean = trends.loc[trends.tests > trends.tests.mean()][:10]
 #     print(trends.tests)
@@ -190,7 +322,13 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
     #     if row['last']:
     #         df_orig[row['name']] = df[row['name']]
 
-    if charts:
+    # if charts:
+    #     filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '.png'
+    #     plot_trends(df_orig, filename)
+
+
+
+
     #     for i, row in trends_df.iterrows():
     # #         print (row)
     # #         print('row name ', row.tests)
@@ -207,63 +345,7 @@ def gentrends(df, charts=False, pair='default_filename_plot'):
     #         # print (linewidth)
     #         plt.plot(df_orig.index, df_orig[row['name']], colour, label=row['name'], linewidth=linewidth)
 
-        plt.plot(df_orig.index, df_orig['rt'], 'r', label='resistance trend', linewidth=2)
-        plt.plot(df_orig.index, df_orig['st'], 'g', label='support trend', linewidth=2)
-        # for pt in ['sup', 'res']:
-        #     print (pt)
-        #     above_mean = trends_df.loc[trends_df['type'] == pt]
-        # #     print (above_mean)
-        #     max_tests = above_mean.tests.max()
-        #     for i, row in above_mean.iterrows():
-        # #         print (row)
-        # #         print('row name ', row.tests)
-        #         # linewidth = row['tests'] / max_tests
-        #         if row['first'] or row['last']:
-        #             linewidth = 1
-        #             colour = colours[pt]
-        #             if row['first']:
-        #                 linewidth = 1
-        #                 colour = 'm'
-        #             if row['last']:
-        #                 linewidth = 1
-        #                 colour = 'b'
-        #
-        #             # print (linewidth)
-        #             plt.plot(df.index, df[row['name']], colour, label=row['name'], linewidth=linewidth)
-
-        #     print (len(t_r))
-    #     for t in len(0, len(trends)):
-    #         trend_name = trends.index[t]['name']
-    #         plt.plot(df.index, df[trend_name], 'r', label=trend_name)
-    # #         for it in range(0, trend_tests):
-    # #             plt.scatter(t_r.index[it], t_r.iloc[it].close, color='c')
-
-        plt.plot(df.high, 'r', alpha=0.5)
-        plt.plot(df.close, 'k', alpha=0.5)
-        plt.plot(df.low, 'g', alpha=0.5)
-
-        plt.plot(df.bb_lowerband, 'b', alpha=0.5, linewidth=2)
-        plt.plot(df.bb_upperband, 'b', alpha=0.5, linewidth=2)
-        # macd = go.Scattergl(x=data['date'], y=data['macd'], name='MACD')
-        # macdsignal = go.Scattergl(x=data['date'], y=data['macdsignal'], name='MACD signal')
-        # volume = go.Bar(x=data['date'], y=data['volume'], name='Volume')
-
-        plot_pivots(df.close.values, df.low.values, df.high.values, df.pivots.values)
-
-        plt.figure(num=0, figsize=(20,10))
-        plt.xlim(0, len(df.close))
-        plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
-
-        print(pair)
-        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
-        print('saving file: ', filename)
-        plt.savefig(filename)
-        plt.close()
-        # plot_pivots(df.close.values, df.low.values, df.high.values, pivots)
-        # legend(['pivots','trend', 'close'])
-        # plt.show()
-
-    return df_orig
+    return trends
 
 # from math import sqrt
 

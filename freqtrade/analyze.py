@@ -10,12 +10,14 @@ import arrow
 from pandas import DataFrame, to_datetime
 
 from freqtrade import (DependencyException, OperationalException, exchange, persistence)
+from freqtrade.configuration import Configuration
 from freqtrade.exchange import get_ticker_history
-from freqtrade.persistence import Trade, Pair
+from freqtrade import persistence
+from freqtrade.persistence import Trade, Pair, Trend
 from freqtrade.strategy.resolver import StrategyResolver
 from freqtrade import constants
 from freqtrade.indicators import get_trend_lines, get_pivots, in_range
-from freqtrade.trends import gentrends
+from freqtrade.trends import gentrends, plot_trends
 
 # ZigZag
 
@@ -127,23 +129,47 @@ class Analyze(object):
                         '5m':4,
                         '1m':1.2}
 
+        prop = int(len(df)/100)
         volat_window = {
                         '1d':0.5,
                         '1h':2,
                         '5m':10,
-                        '1m':5}
+                        '1m':prop}
         print (interval)
         window = volat_window[interval]
         df['bb_exp'] = (df.bb_upperband.rolling(window=window).max() - df.bb_lowerband.rolling(window=window).min()) / df.bb_upperband.rolling(window=window).max() * timeframe_volat[interval]
+        # df['bb_exp'] = (df.bb_upperband - df.bb_lowerband) / df.bb_upperband  * timeframe_volat[interval]
         pivots = peak_valley_pivots(df.low.values, df.high.values, df.bb_exp.values)
         df['pivots'] = np.transpose(np.array((pivots)))
 
-        df = gentrends(df, pair=pair, charts=True)
+        # df = gentrends(self, df, pair=pair, charts=False)
+
+        config = Configuration.get_config(self)
+        persistence.init(config)
+
+        print (pair)
+
+        current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+
+
+        if current_pair == None:
+            pair_obj = Pair(
+                pair=pair
+            )
+            Pair.session.add(pair_obj)
+            current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+
+        print (current_pair)
+
+        df = current_pair.populate_trend_lines(df, 'all')
+
+
+        Pair.session.flush()
         # print (df)
         # print (df)
         # def set_sup(row):
         #     # print (row)
-        #     supports = [col for col in df if col.startswith('t_')]
+        #     supports = [col for col in df if col.startswith('trend-')]
         #     # support = df[df['ids'].str.contains('ball', na = False)]
         #     # print(supports)
         #     # print (pivots['sup'])
@@ -158,7 +184,7 @@ class Analyze(object):
         #             #     print ('sup: ', row[sup], 'close: ', row['close'], 'low: ', row['low'])
         #             return row[sup]
         # def set_res(row):
-        #     resistences = [col for col in df if col.startswith('t_')]
+        #     resistences = [col for col in df if col.startswith('trend-')]
         #     # resistences.append(pivots['sup'])
         #     for res in resistences:
         #         # print ('res: ', row[res] , row[high])
@@ -170,6 +196,8 @@ class Analyze(object):
 
 #         dataframe['s1'] = df.filter(regex='trend-$', axis=1)[]
         # print (df.st, df.rt)
+        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-backtesting.png'
+        plot_trends(df, filename)
 
         return df
 
@@ -285,7 +313,7 @@ class Analyze(object):
             str(buy),
             str(sell)
         )
-        return buy, sell
+        return buy, sell, dataframe
 
     def should_sell(self, trade: Trade, rate: float, date: datetime, buy: bool, sell: bool) -> bool:
         """

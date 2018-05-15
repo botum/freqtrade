@@ -20,9 +20,10 @@ from freqtrade import (
 from freqtrade import constants
 from freqtrade.analyze import Analyze
 from freqtrade.fiat_convert import CryptoToFiatConverter
-from freqtrade.persistence import Trade, Pair
+from freqtrade.persistence import Trade, Pair, Trend
 from freqtrade.rpc.rpc_manager import RPCManager
 from freqtrade.state import State
+from freqtrade.trends import plot_trends
 
 logger = logging.getLogger(__name__)
 
@@ -302,9 +303,12 @@ class FreqtradeBot(object):
 
         # Pick pair based on buy signals
         for _pair in whitelist:
-            (buy, sell) = self.analyze.get_signal(_pair, interval)
+            (buy, sell, df) = self.analyze.get_signal(_pair, interval)
             if buy and not sell:
                 pair = _pair
+                filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '.png'
+                print(filename)
+                plot_trends(df, filename)
                 break
         else:
             return False
@@ -335,6 +339,7 @@ class FreqtradeBot(object):
                 self.config['fiat_display_currency']
             )
         )
+        self.rpc.send_img(filename)
         # Fee is applied twice because we make a LIMIT_BUY and LIMIT_SELL
         fee = exchange.get_fee(symbol=pair, taker_or_maker='maker')
         trade = Trade(
@@ -455,10 +460,10 @@ class FreqtradeBot(object):
         (buy, sell) = (False, False)
 
         if self.config.get('experimental', {}).get('use_sell_signal'):
-            (buy, sell) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval())
+            (buy, sell, df) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval())
 
         if self.analyze.should_sell(trade, current_rate, datetime.utcnow(), buy, sell):
-            self.execute_sell(trade, current_rate)
+            self.execute_sell(trade, current_rate, df)
             return True
         logger.info('Found no sell signals for whitelisted currencies. Trying again..')
         return False
@@ -542,7 +547,7 @@ class FreqtradeBot(object):
         # TODO: figure out how to handle partially complete sell orders
         return False
 
-    def execute_sell(self, trade: Trade, limit: float) -> None:
+    def execute_sell(self, trade: Trade, limit: float, df) -> None:
         """
         Executes a limit sell for the given trade and limit
         :param trade: Trade instance
@@ -603,6 +608,12 @@ class FreqtradeBot(object):
                 profit_coin=profit_trade
             )
 
+        pair = trade.pair
+        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '.png'
+        print(filename)
+        plot_trends(df, filename)
+
         # Send the message
         self.rpc.send_msg(message)
+        self.rpc.send_img(filename)
         Trade.session.flush()

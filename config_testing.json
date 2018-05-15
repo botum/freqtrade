@@ -13,7 +13,7 @@
         "key": "",
         "secret": "",
         "pair_whitelist": [
-          "ETH/BTC"
+          "ADA/BTC"
       ],
       "pair_whitelist_": [
         "ETH/BTC",

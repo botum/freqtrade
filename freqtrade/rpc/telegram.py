@@ -5,6 +5,8 @@ This module manage Telegram communication
 """
 import logging
 from typing import Any, Callable
+import io, os
+import time
 
 from tabulate import tabulate
 from telegram import Bot, ParseMode, ReplyKeyboardMarkup, Update
@@ -149,6 +151,7 @@ class Telegram(RPC):
         else:
             for trademsg in trades:
                 self.send_msg(trademsg, bot=bot)
+                # self.send_img(trademsg, bot=bot)
 
     @authorized_only
     def _status_table(self, bot: Bot, update: Update) -> None:
@@ -425,8 +428,7 @@ class Telegram(RPC):
                 bot.send_message(
                     self._config['telegram']['chat_id'],
                     text=msg,
-                    parse_mode=parse_mode,
-                    reply_markup=reply_markup
+                    parse_mode=parse_mode
                 )
             except NetworkError as network_err:
                 # Sometimes the telegram server resets the current connection,
@@ -438,9 +440,54 @@ class Telegram(RPC):
                 bot.send_message(
                     self._config['telegram']['chat_id'],
                     text=msg,
-                    parse_mode=parse_mode,
-                    reply_markup=reply_markup
+                    parse_mode=parse_mode
                 )
+        except TelegramError as telegram_err:
+            logger.warning(
+                'TelegramError: %s! Giving up on that message.',
+                telegram_err.message
+            )
+
+    def send_img(self, file_path: str, bot: Bot = None) -> None:
+        """
+        Send given image
+        :param img: image
+        :param bot: alternative bot
+        :return: None
+        """
+        if not self.is_enabled():
+            return
+
+        bot = bot or self._updater.bot
+
+        while not os.path.exists(file_path):
+            time.sleep(1)
+
+        if os.path.isfile(file_path):
+            chart = open(file_path, 'rb')
+        else:
+            raise ValueError("%s isn't a file!" % file_path)
+
+        # time.sleep(5)
+
+        # print (chart)
+        # if chart == None:
+        #     while chart == None:
+        #         print ('sleeping 5s and retrying')
+        #         chart = open(img, 'rb')
+
+        try:
+            try:
+                bot.send_photo(chat_id=self._config['telegram']['chat_id'], photo=chart, timeout = 60)
+            except NetworkError as network_err:
+                # Sometimes the telegram server resets the current connection,
+                # if this is the case we send the message again.
+                logger.warning(
+                    'Telegram NetworkError: %s! Trying one more time.',
+                    network_err.message
+                )
+                bot.send_photo(chat_id=self._config['telegram']['chat_id'], photo=chart, timeout = 60)
+                chart.close()
         except TelegramError as telegram_err:
             logger.warning(
                 'TelegramError: %s! Giving up on that message.',

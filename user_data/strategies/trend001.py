@@ -286,7 +286,7 @@ class trend001(IStrategy):
                 # )
                 # &
                 (
-                (dataframe['close'] < dataframe['st']*1.001)
+                (in_range(dataframe['close'],dataframe['st']*1.002, 0.002))
                 &
                 (dataframe['rt'] > dataframe['st']*1.03)
                 )
@@ -307,8 +307,8 @@ class trend001(IStrategy):
                 # (dataframe['trend_max'] > dataframe['trend_min'])
                 # )
                 #
-                &
-                (dataframe['close'] <= dataframe['bb_lowerband']*1.001)
+                # &
+                # (dataframe['close'] <= dataframe['bb_lowerband']*1.001)
                 # &
                 # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
                 # &
@@ -362,9 +362,9 @@ class trend001(IStrategy):
 #                     &
 #                     (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
 #                 )
-                (dataframe['close'] >= dataframe['rt'].shift(1)*0.9999)
+                (dataframe['close'] >= dataframe['rt'])
                 |
-                (dataframe['close'] <= dataframe['st'].shift(1) * 0.99)
+                (dataframe['close'] <= dataframe['st'] * 0.99)
 
             ),
             'sell'] = 1

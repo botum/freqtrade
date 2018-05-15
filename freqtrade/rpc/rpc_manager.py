@@ -54,3 +54,13 @@ class RPCManager(object):
         logger.info(msg)
         if 'telegram' in self.registered_modules:
             self.telegram.send_msg(msg)
+
+    def send_img(self, img: str) -> None:
+        """
+        Send given markdown message to all registered rpc modules
+        :param msg: message
+        :return: None
+        """
+        logger.info('sending image')
+        if 'telegram' in self.registered_modules:
+            self.telegram.send_img(img)
