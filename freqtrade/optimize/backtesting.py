@@ -165,7 +165,7 @@ class Backtesting(object):
             use_sell_signal: act on sell-signal
         :return: DataFrame
         """
-        headers = ['date', 'buy', 'open', 'close', 'sell', 'st', 'rt']
+        headers = ['date', 'buy', 'open', 'close', 'sell', 'min', 'max']
         processed = args['processed']
         max_open_trades = args.get('max_open_trades', 0)
         realistic = args.get('realistic', False)

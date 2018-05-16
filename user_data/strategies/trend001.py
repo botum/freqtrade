@@ -286,15 +286,15 @@ class trend001(IStrategy):
                 # )
                 # &
                 (
-                (in_range(dataframe['close'],dataframe['st']*1.002, 0.002))
+                (in_range(dataframe['close'],dataframe['min'], 0.01))
                 &
-                (dataframe['rt'] > dataframe['st']*1.03)
+                (dataframe['max'] > dataframe['min']*1.05)
                 )
                 # buy breakout?
-                |
-                (
-                (dataframe['close'] > dataframe['rt']*1.01)
-                )
+                # |
+                # (
+                # (dataframe['close'] > dataframe['max']*1.01)
+                # )
                 # &
                 # (
                 # (dataframe['main_trend_max'] > dataframe['main_trend_min']*1.02)
@@ -362,9 +362,11 @@ class trend001(IStrategy):
 #                     &
 #                     (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
 #                 )
-                (dataframe['close'] >= dataframe['rt'])
+                # (in_range(dataframe['close'], dataframe['rt'], 0.001))
+                # |
+                (dataframe['close'] >= dataframe['max']*0.98)
                 |
-                (dataframe['close'] <= dataframe['st'] * 0.99)
+                (dataframe['close'] <= dataframe['min'] * 0.99)
 
             ),
             'sell'] = 1

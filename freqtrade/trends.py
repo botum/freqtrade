@@ -38,11 +38,14 @@ def plot_pivots(X, L, H, pivots):
 
 def plot_trends(df, filename: str=None):
     plt.figure(num=0, figsize=(20,10))
-    plt.xlim(0, len(df.close))
-    plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
+    # plt.xlim(0, len(df.close))
+    # plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
 
-    plt.plot(df.index, df['rt'], 'r', label='resistance trend', linewidth=2)
-    plt.plot(df.index, df['st'], 'g', label='support trend', linewidth=2)
+    plt.plot(df.index, df['max'], 'r', label='resistance trend', linewidth=2)
+    plt.plot(df.index, df['min'], 'g', label='support trend', linewidth=2)
+
+    # plt.plot(df.index, df['st'], 'r', label='resistance trend', linewidth=2, alpha=0.5)
+    # plt.plot(df.index, df['rt'], 'g', label='support trend', linewidth=2, alpha=0.5)
 
     plt.plot(df.high, 'r', alpha=0.5)
     plt.plot(df.close, 'k', alpha=0.5)
@@ -83,11 +86,11 @@ def get_tests(df, trend_name, pt, first):
     trend = df[trend_name]
 
     if pt == 'res':
-        tolerance = 0.001
-        t_r = df.loc[df['pivots']==1 & in_range(df['high'],trend, tolerance)]
+        tolerance = 0.022
+        t_r = df.loc[(df['pivots']==1) & in_range(df['high'],trend, tolerance)]
     if pt == 'sup':
-        tolerance = 0.001
-        t_r = df.loc[df['pivots']==-1 & in_range(df['low'],trend, tolerance)]
+        tolerance = 0.022
+        t_r = df.loc[(df['pivots']==-1 ) & in_range(df['low'],trend, tolerance)]
 
     trend_tests = len(t_r)
 #     trends['trend'].append(trend)
@@ -137,7 +140,10 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
                 'b':[bx, by, df.iloc[bx].date],
                 'slope':slope,
                 'conf_n':trend_tests,
-                'type':'res'}
+                'type':'res',
+                'last':False,
+                'max':False,
+                'min':False}
         trends.append(trend)
 
         for ib in range(0, len(next_waves)):
@@ -157,14 +163,16 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
                         'b':[bx, by, df.iloc[bx].date],
                         'slope':slope,
                         'conf_n':trend_tests,
-                        'type':'res'}
+                        'type':'res',
+                        'last':False,
+                        'max':False,
+                        'min':False}
                 trends.append(trend)
 
-            trends[-1]['last'] = True
+        trends[-1]['last'] = True
 
-            if i == id_max:
+        if i == id_max:
             df_orig['rt'] = df[trend_name]
-
             trends[-1]['max'] = True
 
     for i in range(0, len(l) -1):
@@ -194,7 +202,10 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
             'b':[bx, by, df.iloc[bx].date],
             'slope':slope,
             'conf_n':trend_tests,
-            'type':'sup'}
+            'type':'sup',
+            'last':False,
+            'max':False,
+            'min':False}
         trends.append(trend)
 
         for ib in range(0, len(next_waves)):
@@ -215,7 +226,9 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
                     'slope':slope,
                     'conf_n':trend_tests,
                     'type':'sup',
-                    'last':True}
+                    'last':False,
+                    'max':False,
+                    'min':False}
                 trends.append(trend)
 
         trends[-1]['last'] = True

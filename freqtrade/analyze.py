@@ -8,6 +8,9 @@ from typing import Dict, List, Tuple
 
 import arrow
 from pandas import DataFrame, to_datetime
+from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,
+                        create_engine)
+from sqlalchemy.engine import Engine
 
 from freqtrade import (DependencyException, OperationalException, exchange, persistence)
 from freqtrade.configuration import Configuration
@@ -145,9 +148,11 @@ class Analyze(object):
         # df = gentrends(self, df, pair=pair, charts=False)
 
         config = Configuration.get_config(self)
-        persistence.init(config)
+        engine = create_engine('sqlite:///tradesv3.sqlite')
+        persistence.init(config, engine=engine)
 
         print (pair)
+        print (len(df))
 
         current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
 

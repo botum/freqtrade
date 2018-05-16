@@ -4,6 +4,7 @@
     "stake_amount": 0.1,
     "fiat_display_currency": "USD",
     "dry_run": true,
+    "db_url": "asdf",
     "unfilledtimeout": 600,
     "bid_strategy": {
         "ask_last_balance": 0.01
@@ -13,7 +14,7 @@
         "key": "",
         "secret": "",
         "pair_whitelist": [
-          "ADA/BTC"
+          "XVG/BTC"
       ],
       "pair_whitelist_": [
         "ETH/BTC",
