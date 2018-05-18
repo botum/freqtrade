@@ -148,8 +148,8 @@ class Analyze(object):
         # df = gentrends(self, df, pair=pair, charts=False)
 
         config = Configuration.get_config(self)
-        engine = create_engine('sqlite:///tradesv3.sqlite')
-        persistence.init(config, engine=engine)
+        engine = create_engine('sqlite:///tradesv3.trends.sqlite')
+        persistence.init(config)
 
         print (pair)
         print (len(df))

@@ -55,7 +55,7 @@ class trend001(IStrategy):
     stoploss = -0.6
 
     # Optimal ticker interval for the strategy
-    ticker_interval = "1m"
+    ticker_interval = "5m"
 
     def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
@@ -277,7 +277,7 @@ class trend001(IStrategy):
             (
                 (
                 # buy when going down and hit support
-                # (dataframe['trend_min'] < dataframe['high'].rolling(window=5).mean().shift(1))
+                # (dataframe['min'] < dataframe['high'].rolling(window=5).mean().shift(1))
                 # &
                 # (
                 # (dataframe['close'] < dataframe['main_trend_min'] * 1.005)
@@ -286,7 +286,7 @@ class trend001(IStrategy):
                 # )
                 # &
                 (
-                (in_range(dataframe['close'],dataframe['min'], 0.01))
+                (in_range(dataframe['close'],dataframe['min']*1.005, 0.005))
                 &
                 (dataframe['max'] > dataframe['min']*1.05)
                 )
@@ -312,7 +312,7 @@ class trend001(IStrategy):
                 # &
                 # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
                 # &
-                # (dataframe['volume'] > (dataframe['volume'].rolling(window=30).mean().shift(1) * 5))
+                # (dataframe['volume'] > (dataframe['volume'].rolling(window=30).mean().shift(1) * 2))
                 # &
                 # (dataframe['close'] > dataframe['s1'])
                 # &
@@ -364,9 +364,9 @@ class trend001(IStrategy):
 #                 )
                 # (in_range(dataframe['close'], dataframe['rt'], 0.001))
                 # |
-                (dataframe['close'] >= dataframe['max']*0.98)
+                (dataframe['close'] >= dataframe['max']*0.999)
                 |
-                (dataframe['close'] <= dataframe['min'] * 0.99)
+                (dataframe['close'] <= dataframe['min'] * 0.95)
 
             ),
             'sell'] = 1

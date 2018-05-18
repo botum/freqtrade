@@ -9,13 +9,14 @@ from typing import Dict, Optional
 
 import arrow
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,
-                        create_engine)
+                        create_engine, ForeignKey)
 
 from pandas import DataFrame, to_datetime
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.scoping import scoped_session
 from sqlalchemy.orm.session import sessionmaker
+from sqlalchemy.orm import relationship
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import inspect
 
@@ -54,6 +55,7 @@ def init(config: dict, engine: Optional[Engine] = None) -> None:
                 engine = create_engine('sqlite:///tradesv3.dry_run.sqlite')
             # Otherwise dry run will store in memory
             else:
+                # engine = create_engine('sqlite:///tradesv3.trends.sqlite')
                 engine = create_engine('sqlite://',
                                        connect_args={'check_same_thread': False},
                                        poolclass=StaticPool,
@@ -305,7 +307,7 @@ class Pair(_DECL_BASE):
     last_rate = Column(Float, default=0)
     supports = Column(ScalarListType, nullable=True)
     resistences = Column(ScalarListType, nullable=True)
-    trends = Column(ScalarListType, nullable=True)
+    trends = relationship("Trend", back_populates="pair")
     day_trend = Column(ScalarListType, nullable=True)
     hour_trend = Column(ScalarListType, nullable=True)
     minute_trend = Column(ScalarListType, nullable=True)
@@ -342,121 +344,57 @@ class Pair(_DECL_BASE):
     #     #
     #     return cactix.gentrends(df)
 
-    def populate_trend_lines(self, df: DataFrame, timeframe: str) -> list:
+    def populate_trend_lines(self, df: DataFrame, timeframe: str, update: bool=False) -> list:
         trends = Trend.query.filter(
-                            (getattr(Trend,'pair')==self.pair)
+                            (getattr(Trend,'pair_id')==self.id)
                             &
-                            (
+                            ((
                                 (getattr(Trend,'last') == True)
                                 & (getattr(Trend,'conf_n') > 2)
-                                # & (getattr(Trend,'slope') > 0)
+                                & (getattr(Trend,'slope') > 0)
                             )
                             |
                             (
                                 (getattr(Trend,'max') == True)
                                 | (getattr(Trend,'min') == True)
-                            )
+                            ))
                             ).all()
 
-        max = Trend.query.filter((getattr(Trend,'max') == True)).all()
-        min = Trend.query.filter((getattr(Trend,'min') == True)).all()
-
-
-        print ('Populating trends: ', len(trends))
         if len(trends) == 0:
+            update = True
+        else:
+            max = Trend.query.filter((getattr(Trend,'max') == True)).first()
+            min = Trend.query.filter((getattr(Trend,'min') == True)).first()
+            df = max.populate_to_df(df)
+            df = min.populate_to_df(df)
+            if( df.iloc[-1].close > df.iloc[-1]['max']) or (df.iloc[-1].close < df.iloc[-1]['min']):
+                update = True
+
+
+        if update == True:
             self.update_trend_lines(df)
             trends = Trend.query.filter(
-                                (getattr(Trend,'pair')==self.pair)
+                                (getattr(Trend,'pair_id')==self.id)
                                 &
-                                (
+                                ((
                                     (getattr(Trend,'last') == True)
                                     & (getattr(Trend,'conf_n') > 2)
-                                    # & (getattr(Trend,'slope') > 0)
+                                    & (getattr(Trend,'slope') > 0)
                                 )
                                 |
                                 (
                                     (getattr(Trend,'max') == True)
                                     | (getattr(Trend,'min') == True)
-                                )
+                                ))
                                 ).all()
             # print (trends)
+
+        print ('Populating trends: ', len(trends))
+
         for t in trends:
-            ax = t.ax
-            ay = t.ay
-            ad = t.ad
-            bx = t.bx
-            by = t.by
-            bd = t.bd
-
-            ind = len(df.loc[df.date == ad])
-            if t.conf_n > 2:
-                print (t)
-
-            if ind != None:
-                slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
-                trend = polyval([slope,intercept],df.index)
-                trend_name = 'trend-'+str(ay)+'|'+str(by)
-            else:
-                df_first_date = df.iloc[0].date.tz_localize(None).to_pydatetime()
-                diff_min = (df_first_date - ad).total_seconds() / 60.0
-                d = np.arange(len(df) + diff_min)
-                slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
-                trend = polyval([slope,intercept],d)[len(df):]
-                trend_name = 'trend-'+str(ay)+'|'+str(by)
-            if t.max:
-                df.loc[:,'max'] = trend
-            elif t.min:
-                df.loc[:,'min'] = trend
-            else:
-                df.loc[:,trend_name] = trend
-
-        # now with all trends get which is first support / resistance.
-
-        # def set_sup(row):
-        #     # print (row)
-        #     supports = [col for col in df if col.startswith('trend-')]
-        #     # support = df[df['ids'].str.contains('ball', na = False)]
-        #     # print(supports)
-        #     # print (pivots['sup'])
-        #     for sup in supports:
-        #         # print (row["low"] >= sup * 0.98)
-        #         # print (row)
-        #         if row["low"] >= row[sup]:
-        #             # print ('bingo: ')
-        #             # print ('sup: ', row[sup], 'low: ', row['low'])
-        #             # if in_range(row["close"],row[sup], 0.001):
-        #             #     print ('buy zone: ')
-        #             #     print ('sup: ', row[sup], 'close: ', row['close'], 'low: ', row['low'])
-        #             return row[sup]
-        # def set_res(row):
-        #     resistences = [col for col in df if col.startswith('trend-')]
-        #     # resistences.append(pivots['sup'])
-        #     for res in resistences:
-        #         # print ('res: ', row[res] , row[high])
-        #         #  and res >= row["s1"] * 1.02
-        #         if row["high"] <= row[res]:
-        #             return row[res]
-        # df = df.assign(st=df.apply(set_sup, axis=1))
-        # df = df.assign(rt=df.apply(set_res, axis=1))
-        # print (df.columns)
+            df = t.populate_to_df(df)
 
         return df
-
-    # def get_trends(self) -> list:
-    #     # Check if is time to update pivots
-    #     # return self.update_pivots()
-    #     if self.pivots_update_date:
-    #         if self.pivots_update_date < datetime.utcnow() - timedelta(minutes=(30)):
-    #             logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
-    #                            self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
-    #             # print ('update pivots: ', self.pivots)
-    #             return self.update_pivots()
-    #         else:
-    #             pivots = {'sup': self.supports,
-    #                         'res': self.resistences}
-    #             return pivots
-    #     else:
-    #         return self.update_pivots()
 
     def update_trend_lines(self, df: DataFrame) -> list:
         """
@@ -470,9 +408,9 @@ class Pair(_DECL_BASE):
         new_trends = gentrends(self, df, pair=self.pair, charts=True)
         if len(new_trends)>0:
             logger.info('Updating all trends for %s', self.pair)
-            prev_trends = Trend.query.filter(Trend.pair.is_(self.pair)).all()
+            prev_trends = Trend.query.filter((getattr(Trend,'pair_id')==self.id)).all()
             for pt in prev_trends:
-                pt.delete()
+                Trade.session.delete(pt)
             for t in new_trends:
                 ax = t['a'][0]
                 ay = t['a'][1]
@@ -485,7 +423,7 @@ class Pair(_DECL_BASE):
                 #     logger.info('Updating trend a: %s | b: %s', a, b)
                 #     prev_trend.delete()
                 trend_obj = Trend(
-                    pair=self.pair,
+                    pair=self,
                     type = t['type'],
                     last = t['last'],
                     max = t['max'],
@@ -551,7 +489,8 @@ class Trend(_DECL_BASE):
     __tablename__ = 'trends'
 
     id = Column(Integer, primary_key=True)
-    pair = Column(String, nullable=False)
+    pair_id = Column(Integer, ForeignKey('pairs.id'))
+    pair = relationship("Pair", back_populates="trends")
     type = Column(String, nullable=False)
     last = Column(Boolean, default=False)
     max = Column(Boolean, default=False)
@@ -581,6 +520,38 @@ class Trend(_DECL_BASE):
         )
 
 
+    def populate_to_df(self, df: DataFrame) -> list:
+        ax = self.ax
+        ay = self.ay
+        ad = self.ad
+        bx = self.bx
+        by = self.by
+        bd = self.bd
+
+        ind = len(df.loc[df.date == ad])
+
+        # if self.conf_n > 2:
+            # print (t)
+
+        if ind != None:
+            slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
+            trend = polyval([slope,intercept],df.index)
+            trend_name = 'trend-'+str(ay)+'|'+str(by)
+        else:
+            df_first_date = df.iloc[0].date.tz_localize(None).to_pydatetime()
+            diff_min = (df_first_date - ad).total_seconds() / 60.0
+            d = np.arange(len(df) + diff_min)
+            slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
+            trend = polyval([slope,intercept],d)[len(df):]
+            trend_name = 'trend-'+str(ay)+'|'+str(by)
+
+        if self.max:
+            df.loc[:,'max'] = trend
+        elif self.min:
+            df.loc[:,'min'] = trend
+        else:
+            df.loc[:,trend_name] = trend
+        return df
 
     # def transpose_last_trends(self, pair, df) -> list:
     #     # self.a[0]

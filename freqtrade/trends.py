@@ -86,10 +86,10 @@ def get_tests(df, trend_name, pt, first):
     trend = df[trend_name]
 
     if pt == 'res':
-        tolerance = 0.022
+        tolerance = 0.0001
         t_r = df.loc[(df['pivots']==1) & in_range(df['high'],trend, tolerance)]
     if pt == 'sup':
-        tolerance = 0.022
+        tolerance = 0.0001
         t_r = df.loc[(df['pivots']==-1 ) & in_range(df['low'],trend, tolerance)]
 
     trend_tests = len(t_r)

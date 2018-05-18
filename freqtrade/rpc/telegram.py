@@ -448,7 +448,8 @@ class Telegram(RPC):
                 telegram_err.message
             )
 
-    def send_img(self, file_path: str, bot: Bot = None) -> None:
+    def send_img(self, file_path: str, bot: Bot = None,
+                 parse_mode: ParseMode = ParseMode.MARKDOWN) -> None:
         """
         Send given image
         :param img: image
@@ -476,9 +477,20 @@ class Telegram(RPC):
         #         print ('sleeping 5s and retrying')
         #         chart = open(img, 'rb')
 
+
+        keyboard = [['/daily', '/profit', '/balance'],
+                    ['/status', '/status table', '/performance'],
+                    ['/count', '/start', '/stop', '/help']]
+
+        reply_markup = ReplyKeyboardMarkup(keyboard)
+
         try:
             try:
-                bot.send_photo(chat_id=self._config['telegram']['chat_id'], photo=chart, timeout = 60)
+                bot.send_photo(
+                    chat_id=self._config['telegram']['chat_id'],
+                    photo=chart,
+                    timeout = 60,
+                    parse_mode=parse_mode)
             except NetworkError as network_err:
                 # Sometimes the telegram server resets the current connection,
                 # if this is the case we send the message again.
