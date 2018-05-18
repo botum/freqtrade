@@ -26,7 +26,6 @@ from freqtrade.analyze import Analyze
 from freqtrade import exchange
 import freqtrade.optimize as optimize
 
-
 logger = logging.getLogger(__name__)
 
 
