@@ -342,6 +342,10 @@ class FreqtradeBot(object):
         self.rpc.send_img(filename)
         # Fee is applied twice because we make a LIMIT_BUY and LIMIT_SELL
         fee = exchange.get_fee(symbol=pair, taker_or_maker='maker')
+
+        pair_obj = Pair.query.filter_by(pair = pair).first()
+        res, sup = pair_obj.get_trade_trends(df, '1m')
+
         trade = Trade(
             pair=pair,
             stake_amount=stake_amount,
@@ -352,7 +356,9 @@ class FreqtradeBot(object):
             open_rate_requested=buy_limit,
             open_date=datetime.utcnow(),
             exchange=exchange.get_id(),
-            open_order_id=order_id
+            open_order_id=order_id,
+            sup_trend=sup.id,
+            res_trend=res.id
         )
         Trade.session.add(trade)
         Trade.session.flush()
@@ -461,7 +467,7 @@ class FreqtradeBot(object):
         (buy, sell) = (False, False)
 
         if self.config.get('experimental', {}).get('use_sell_signal'):
-            (buy, sell, df) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval())
+            (buy, sell, df) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval(), trade=True)
 
         if self.analyze.should_sell(trade, current_rate, datetime.utcnow(), buy, sell):
             self.execute_sell(trade, current_rate, df)

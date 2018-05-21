@@ -65,7 +65,7 @@ def plot_trends(df, filename: str=None):
     # macdsignal = go.Scattergl(x=data['date'], y=data['macdsignal'], name='MACD signal')
     # volume = go.Bar(x=data['date'], y=data['volume'], name='Volume')
 
-    plot_pivots(df.close.values, df.low.values, df.high.values, df.pivots.values)
+    # plot_pivots(df.close.values, df.low.values, df.high.values, df.pivots.values)
 
     plt.figure(num=0, figsize=(20,10))
     plt.xlim(0, len(df.close))
@@ -73,7 +73,7 @@ def plot_trends(df, filename: str=None):
 
     # print(pair)
     if not filename:
-        filename = 'chart_plots/' + 'UNKNOWN-PAIR' + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
+        filename = 'chart_plots/' +  interval + '-' + 'UNKNOWN-PAIR' + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
     # print('saving file: ', filename)
     plt.savefig(filename)
     plt.close()
@@ -98,7 +98,7 @@ def get_tests(df, trend_name, pt, first):
 
     return trend_tests
 
-def gentrends(self, df, charts=False, pair='default_filename_plot'):
+def gentrends(self, df, interval: int, charts=False, pair='default_filename_plot'):
 
     h = df.loc[df['pivots']==1]
     l = df.loc[df['pivots']==-1]
@@ -135,7 +135,7 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
         trend_tests = get_tests(df, trend_name, 'res', True)
 
         trend = {'name':trend_name,
-                'timeframe':'all',
+                'interval':interval,
                 'a':[ax, ay, df.iloc[ax].date],
                 'b':[bx, by, df.iloc[bx].date],
                 'slope':slope,
@@ -158,7 +158,7 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
                 df.loc[h.index[i]:,trend_name] = trend_next_wave
                 trend_tests = get_tests(df, trend_name, 'res', False)
                 trend = {'name':trend_name,
-                        'timeframe':'all',
+                        'interval':interval,
                         'a':[ax, ay, df.iloc[ax].date],
                         'b':[bx, by, df.iloc[bx].date],
                         'slope':slope,
@@ -197,7 +197,7 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
 
         trend = {
             'name':trend_name,
-            'timeframe':'all',
+            'interval':interval,
             'a':[ax, ay, df.iloc[ax].date],
             'b':[bx, by, df.iloc[bx].date],
             'slope':slope,
@@ -220,7 +220,7 @@ def gentrends(self, df, charts=False, pair='default_filename_plot'):
                 trend_tests = get_tests(df, trend_name, 'sup', False)
                 trend = {
                     'name':trend_name,
-                    'timeframe':'all',
+                    'interval':interval,
                     'a':[ax, ay, df.iloc[ax].date],
                     'b':[bx, by, df.iloc[bx].date],
                     'slope':slope,

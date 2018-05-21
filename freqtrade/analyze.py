@@ -90,7 +90,7 @@ class Analyze(object):
         """
         return self.strategy.populate_indicators(dataframe=dataframe)
 
-    def populate_trend_lines(self, df: DataFrame, pair: str, interval: int) -> DataFrame:
+    def populate_trend_lines(self, df: DataFrame, pair: str, interval: int, trade: bool) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -126,29 +126,10 @@ class Analyze(object):
         # df60['main_trend_max'], df60['main_trend_min'], df60['main_trend_max_slope'], df60['main_trend_min_slope'] = get_trend_lines(pair, df60)
 
 
-        timeframe_volat = {
-                        '1d':1.1,
-                        '1h':0.0009,
-                        '5m':4,
-                        '1m':1.2}
-
-        prop = int(len(df)/100)
-        volat_window = {
-                        '1d':0.5,
-                        '1h':2,
-                        '5m':10,
-                        '1m':prop}
-        print (interval)
-        window = volat_window[interval]
-        df['bb_exp'] = (df.bb_upperband.rolling(window=window).max() - df.bb_lowerband.rolling(window=window).min()) / df.bb_upperband.rolling(window=window).max() * timeframe_volat[interval]
-        # df['bb_exp'] = (df.bb_upperband - df.bb_lowerband) / df.bb_upperband  * timeframe_volat[interval]
-        pivots = peak_valley_pivots(df.low.values, df.high.values, df.bb_exp.values)
-        df['pivots'] = np.transpose(np.array((pivots)))
-
         # df = gentrends(self, df, pair=pair, charts=False)
 
         config = Configuration.get_config(self)
-        engine = create_engine('sqlite:///tradesv3.trends.sqlite')
+        # engine = create_engine('sqlite:///tradesv3.trends.sqlite')
         persistence.init(config)
 
         print (pair)
@@ -166,8 +147,7 @@ class Analyze(object):
 
         print (current_pair)
 
-        df = current_pair.populate_trend_lines(df, 'all')
-
+        df = current_pair.populate_trend_lines(df, interval)
 
         Pair.session.flush()
         # print (df)
@@ -201,7 +181,7 @@ class Analyze(object):
 
 #         dataframe['s1'] = df.filter(regex='trend-$', axis=1)[]
         # print (df.st, df.rt)
-        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-backtesting.png'
+        filename = 'chart_plots/' + interval + '-' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-backtesting.png'
         plot_trends(df, filename)
 
         return df
@@ -249,7 +229,7 @@ class Analyze(object):
         """
         return self.strategy.ticker_interval
 
-    def analyze_ticker(self, ticker_history: List[Dict], pair: str, interval: int) -> DataFrame:
+    def analyze_ticker(self, ticker_history: List[Dict], pair: str, interval: int, trade: bool) -> DataFrame:
         """
         Parses the given ticker history and returns a populated DataFrame
         add several TA indicators and buy signal to it
@@ -258,12 +238,12 @@ class Analyze(object):
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
         # dataframe = self.populate_pivots(dataframe, pair)
-        dataframe = self.populate_trend_lines(dataframe, pair, interval)
+        dataframe = self.populate_trend_lines(dataframe, pair, interval, trade)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe
 
-    def get_signal(self, pair: str, interval: str) -> Tuple[bool, bool]:
+    def get_signal(self, pair: str, interval: str, trade: bool=False) -> Tuple[bool, bool]:
         """
         Calculates current signal based several technical analysis indicators
         :param pair: pair in format ANT/BTC
@@ -277,7 +257,7 @@ class Analyze(object):
             return False, False
 
         try:
-            dataframe = self.analyze_ticker(ticker_hist, pair, interval)
+            dataframe = self.analyze_ticker(ticker_hist, pair, interval, trade)
         except ValueError as error:
             logger.warning(
                 'Unable to analyze ticker for pair %s: %s',

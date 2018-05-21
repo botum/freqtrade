@@ -176,7 +176,7 @@ class Backtesting(object):
         for pair, pair_data in processed.items():
             pair_data['buy'], pair_data['sell'] = 0, 0  # cleanup from previous run
 
-            ticker_data = self.populate_sell_trend(self.populate_buy_trend(self.populate_trend_lines(pair_data, pair, self.ticker_interval)))[headers]
+            ticker_data = self.populate_sell_trend(self.populate_buy_trend(self.populate_trend_lines(pair_data, pair, self.ticker_interval, trade=True)))[headers]
             ticker = [x for x in ticker_data.itertuples()]
 
             lock_pair_until = None
