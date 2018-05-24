@@ -415,6 +415,7 @@ class Pair(_DECL_BASE):
         if len(new_trends)>0:
             logger.info('Updating all trends for %s', self.pair)
             prev_trends = Trend.query.filter(Trend.pair_id.is_(self.id)).all()
+            print (prev_trends)
             for pt in prev_trends:
                 Trend.session.delete(pt)
                 cleanup()
