@@ -467,7 +467,7 @@ class FreqtradeBot(object):
         (buy, sell) = (False, False)
 
         if self.config.get('experimental', {}).get('use_sell_signal'):
-            (buy, sell, df) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval(), trade=True)
+            (buy, sell, df) = self.analyze.get_signal(trade.pair, self.analyze.get_ticker_interval(), trade=trade)
 
         if self.analyze.should_sell(trade, current_rate, datetime.utcnow(), buy, sell):
             self.execute_sell(trade, current_rate, df)

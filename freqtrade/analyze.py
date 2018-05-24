@@ -16,6 +16,7 @@ from freqtrade import (DependencyException, OperationalException, exchange, pers
 from freqtrade.configuration import Configuration
 from freqtrade.exchange import get_ticker_history
 from freqtrade import persistence
+# from freqtrade.persistence import *
 from freqtrade.persistence import Trade, Pair, Trend
 from freqtrade.strategy.resolver import StrategyResolver
 from freqtrade import constants
@@ -32,6 +33,43 @@ from freqtrade.vendor.zigzag_hi_lo import *
 
 
 logger = logging.getLogger(__name__)
+
+def get_df(pair: str, interval: str) -> DataFrame:
+    """
+    Calculates current signal based several technical analysis indicators
+    :param pair: pair in format ANT/BTC
+    :param interval: Interval to use (in min)
+    :return: (Buy, Sell) A bool-tuple indicating buy/sell signal
+    """
+    print('interval : ',interval)
+
+
+    # ticker_hist = get_ticker_history(pair, interval)
+    ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
+#     print (ticker_hist)
+#     print (ticker_hist)
+    if not ticker_hist:
+        logger.warning('Empty ticker history for pair %s', pair)
+        return None
+
+    try:
+        dataframe = analyze.analyze_ticker(ticker_hist, pair, interval)
+    except ValueError as error:
+        logger.warning(
+            'Unable to analyze ticker for pair %s: %s',
+            pair,
+            str(error)
+        )
+        return None
+    except Exception as error:
+        logger.exception(
+            'Unexpected error when analyzing ticker for pair %s: %s',
+            pair,
+            str(error)
+        )
+        return None
+
+    return dataframe
 
 
 class SignalType(Enum):
@@ -90,7 +128,7 @@ class Analyze(object):
         """
         return self.strategy.populate_indicators(dataframe=dataframe)
 
-    def populate_trend_lines(self, df: DataFrame, pair: str, interval: int, trade: bool) -> DataFrame:
+    def populate_trend_lines(self, df: DataFrame, pair: str, interval: int, trade: Trade=None) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -143,13 +181,49 @@ class Analyze(object):
                 pair=pair
             )
             Pair.session.add(pair_obj)
+            persistence.cleanup()
             current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
 
         print (current_pair)
 
-        df = current_pair.populate_trend_lines(df, interval)
+        # df = current_pair.populate_trend_lines(df, interval)
 
-        Pair.session.flush()
+        if trade:
+            print ('-------------------- we are on a trade --------------------------------')
+            res, sup = trade.res_trend, trade.sup_trend
+        else:
+            res, sup = current_pair.res_trend, current_pair.sup_trend
+            print('first attempt: ', sup, res)
+
+            if not (res and sup):
+                update = True
+            else:
+                df = res.populate_to_df(df)
+                df = sup.populate_to_df(df)
+                if( df.iloc[-1]['close'] > df.iloc[-1]['max']) or (df.iloc[-1]['close'] < df.iloc[-1]['min']):
+                    logger.info('%s max or min off trends /////////////////////////////////////////////////////', current_pair.pair)
+                    update = True
+
+
+            if update == True:
+                current_pair.update_trend_lines(df, interval)
+                # print ('max tren: ', Trend.query.filter_by(max = True, pair_id=self.id, interval=interval).first())
+                current_pair.res_trend = Trend.query.filter_by(max = True, type = 'res', pair_id=current_pair.id, interval=interval).first()
+                # print (current_pair.res_trend)
+                # print ('min tren: ', Trend.query.filter_by(min = True, pair_id=current_pair.id, interval=interval).first())
+                current_pair.sup_trend = Trend.query.filter_by(min = True, type = 'sup', pair_id=current_pair.id, interval=interval).first()
+                # print (self.sup_trend)
+                persistence.cleanup()
+                current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+                res, sup = current_pair.res_trend, current_pair.sup_trend
+                print(sup, res)
+
+            df = res.populate_to_df(df)
+            df = sup.populate_to_df(df)
+
+            # print (df)
+        print('current pair: ', current_pair)
+
         # print (df)
         # print (df)
         # def set_sup(row):
@@ -229,7 +303,7 @@ class Analyze(object):
         """
         return self.strategy.ticker_interval
 
-    def analyze_ticker(self, ticker_history: List[Dict], pair: str, interval: int, trade: bool) -> DataFrame:
+    def analyze_ticker(self, ticker_history: List[Dict], pair: str, interval: int, trade: Trade) -> DataFrame:
         """
         Parses the given ticker history and returns a populated DataFrame
         add several TA indicators and buy signal to it
@@ -243,7 +317,7 @@ class Analyze(object):
         dataframe = self.populate_sell_trend(dataframe)
         return dataframe
 
-    def get_signal(self, pair: str, interval: str, trade: bool=False) -> Tuple[bool, bool]:
+    def get_signal(self, pair: str, interval: str, trade: Trade=None) -> Tuple[bool, bool]:
         """
         Calculates current signal based several technical analysis indicators
         :param pair: pair in format ANT/BTC
