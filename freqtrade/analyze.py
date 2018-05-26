@@ -208,13 +208,13 @@ class Analyze(object):
             sup = Trend.query.filter_by(id=sup).first()
         else:
             res, sup = current_pair.res_trend, current_pair.sup_trend
-            logger.info('Analyze: not in a trade / sup and res:  %i, %i', sup, res)
+            logger.info('Analyze: not in a trade / sup and res:  %s, %s', sup, res)
 
             if not (res and sup):
-                logger.info('Analyze: updating since there are no sup-res:  %i, %i', sup, res)
+                logger.info('Analyze: updating since there are no sup-res:  %s, %s', sup, res)
                 update = True
             else:
-                logger.info('Analyze: we\'ve got sup and res: %i, %i ', sup, res)
+                logger.info('Analyze: we\'ve got sup and res: %s, %s ', sup, res)
 
 
                 res = Trend.query.filter_by(id=res).first()
