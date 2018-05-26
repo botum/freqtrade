@@ -145,13 +145,13 @@ class Telegram(RPC):
             return
 
         # Fetch open trade
-        (error, trades) = self.rpc_trade_status()
+        (error, trades, plot_urls) = self.rpc_trade_status()
         if error:
             self.send_msg(trades, bot=bot)
         else:
-            for trademsg in trades:
+            for id, trademsg in enumerate(trades):
                 self.send_msg(trademsg, bot=bot)
-                # self.send_img(trademsg, bot=bot)
+                self.send_img(plot_urls[id], bot=bot)
 
     @authorized_only
     def _status_table(self, bot: Bot, update: Update) -> None:

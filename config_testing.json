@@ -1,5 +1,5 @@
 {
-    "max_open_trades": 1,
+    "max_open_trades": 20,
     "stake_currency": "BTC",
     "stake_amount": 0.1,
     "fiat_display_currency": "USD",
@@ -13,10 +13,10 @@
         "name": "binance",
         "key": "",
         "secret": "",
-        "pair_whitelist": [
-          "ETH/BTC"
+        "pair_whitelist_": [
+          "ADA/BTC"
       ],
-      "pair_whitelist_": [
+      "pair_whitelist": [
         "ETH/BTC",
         "ZIL/BTC",
         "TRX/BTC",

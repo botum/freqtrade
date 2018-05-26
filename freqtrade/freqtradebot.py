@@ -339,13 +339,14 @@ class FreqtradeBot(object):
                 self.config['fiat_display_currency']
             )
         )
+
         self.rpc.send_img(filename)
         # Fee is applied twice because we make a LIMIT_BUY and LIMIT_SELL
         fee = exchange.get_fee(symbol=pair, taker_or_maker='maker')
 
         pair_obj = Pair.query.filter_by(pair = pair).first()
-        res, sup = pair_obj.get_trade_trends(df, '1m')
-
+        # res, sup = pair_obj.get_trade_trends(df, '1m')
+        res, sup = pair_obj.res_trend, pair_obj.sup_trend
         trade = Trade(
             pair=pair,
             stake_amount=stake_amount,
@@ -357,11 +358,23 @@ class FreqtradeBot(object):
             open_date=datetime.utcnow(),
             exchange=exchange.get_id(),
             open_order_id=order_id,
-            sup_trend=sup.id,
-            res_trend=res.id
+            sup_trend=sup,
+            res_trend=res
         )
         Trade.session.add(trade)
         Trade.session.flush()
+        # print ('-------------------- Printing full size chart and trends --------------------------------')
+        full_filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-full-TRADE.png'
+        res, sup = trade.res_trend, trade.sup_trend
+        res = Trend.query.filter_by(id=res).first()
+        sup = Trend.query.filter_by(id=sup).first()
+        interval = self.analyze.get_ticker_interval()
+        full_df = self.analyze.get_df(pair, interval)
+        full_df = self.analyze.populate_indicators(full_df)
+        full_df = res.populate_to_df(full_df)
+        full_df = sup.populate_to_df(full_df)
+        plot_trends(full_df, full_filename)
+        self.rpc.send_img(full_filename)
         return True
 
     def process_maybe_execute_buy(self) -> bool:
@@ -617,11 +630,24 @@ class FreqtradeBot(object):
             )
 
         pair = trade.pair
-        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '.png'
-        print(filename)
-        plot_trends(df, filename)
 
         # Send the message
         self.rpc.send_msg(message)
+
+        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-live-TRADE.png'
+        plot_trends(df, filename)
         self.rpc.send_img(filename)
+        # print(filename)
+        # print ('-------------------- Printing full size chart and trends --------------------------------')
+        full_filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-full-TRADE.png'
+        res, sup = trade.res_trend, trade.sup_trend
+        res = Trend.query.filter_by(id=res).first()
+        sup = Trend.query.filter_by(id=sup).first()
+        interval = self.analyze.get_ticker_interval()
+        full_df = self.analyze.get_df(pair, interval)
+        full_df = res.populate_to_df(full_df)
+        full_df = sup.populate_to_df(full_df)
+        plot_trends(full_df, full_filename)
+        self.rpc.send_img(full_filename)
+
         Trade.session.flush()

@@ -45,6 +45,7 @@ class RPC(object):
             return True, '*Status:* `no active trade`'
         else:
             result = []
+            plot_urls = []
             for trade in trades:
                 order = None
                 if trade.open_order_id:
@@ -78,10 +79,12 @@ class RPC(object):
                               current_profit=round(current_profit * 100, 2),
                               open_order='({} {} rem={:.8f})'.format(
                                   order['type'], order['side'], order['remaining']
-                              ) if order else None,
+                              ) if order else None
                           )
                 result.append(message)
-            return False, result
+                plot_url = 'chart_plots/' + trade.pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-full-TRADE.png'
+                plot_urls.append(plot_url)
+            return False, result, plot_urls
 
     def rpc_status_table(self) -> Tuple[bool, Any]:
         trades = Trade.query.filter(Trade.is_open.is_(True)).all()

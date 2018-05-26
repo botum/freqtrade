@@ -28,7 +28,7 @@ from freqtrade.optimize import load_tickerdata_file
 
 from freqtrade.indicators import get_pivots
 
-from freqtrade.trends import gentrends
+from freqtrade.trends import gentrends, plot_trends
 from freqtrade.vendor.zigzag_hi_lo import *
 
 from scipy import linspace, polyval, polyfit, sqrt, stats, randn
@@ -65,7 +65,7 @@ def init(config: dict, engine: Optional[Engine] = None) -> None:
         else:
             engine = create_engine('sqlite:///tradesv3.sqlite')
 
-    session = scoped_session(sessionmaker(bind=engine, autoflush=True, autocommit=True))
+    session = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=True))
     Trade.session = session()
     Trade.query = session.query_property()
     Pair.session = session()
@@ -172,16 +172,18 @@ class Trade(_DECL_BASE):
     close_date = Column(DateTime)
     open_order_id = Column(String)
     # trend_id = Column(Integer, ForeignKey('trends.id'))
-    sup_trend = relationship("Trend", back_populates="trades_sup")
-    res_trend = relationship("Trend", back_populates="trades_res")
+    sup_trend = Column(Integer, nullable=False)
+    res_trend = Column(Integer, nullable=False)
 
     def __repr__(self):
-        return 'Trade(id={}, pair={}, amount={:.8f}, open_rate={:.8f}, open_since={})'.format(
+        return 'Trade(id={}, pair={}, amount={:.8f}, open_rate={:.8f}, open_since={}, max_t={}, min_t={})'.format(
             self.id,
             self.pair,
             self.amount,
             self.open_rate,
-            arrow.get(self.open_date).humanize() if self.is_open else 'closed'
+            arrow.get(self.open_date).humanize() if self.is_open else 'closed',
+            self.res_trend,
+            self.sup_trend
         )
 
     def update(self, order: Dict) -> None:
@@ -310,20 +312,12 @@ class Pair(_DECL_BASE):
     last_rate = Column(Float, default=0)
     supports = Column(ScalarListType, nullable=True)
     resistences = Column(ScalarListType, nullable=True)
-    trends = relationship("Trend", back_populates="pair")
-    day_trend = Column(ScalarListType, nullable=True)
-    hour_trend = Column(ScalarListType, nullable=True)
-    minute_trend = Column(ScalarListType, nullable=True)
-    minute_trend = Column(ScalarListType, nullable=True)
+    trends = Column(ScalarListType, nullable=True)
     pivots_update_date = Column(DateTime, default=None)
-    sup_trend = relationship("Trend", uselist=False, back_populates="pair")
-    res_trend = relationship("Trend", uselist=False, back_populates="pair")
+    res_trend = Column(Integer, nullable=True)
+    sup_trend = Column(Integer, nullable=True)
 
     def __repr__(self):
-        if self.res_trend:
-            self.res_trend = None
-        if self.sup_trend:
-            self.sup_trend = None
         return 'Pair(pair={}, rate={:.8f}, sup={}, res={}, tmax={}, tmin={})'.format(
             self.pair,
             self.last_rate,
@@ -369,25 +363,25 @@ class Pair(_DECL_BASE):
     #     #
     #     return cactix.gentrends(df)
 
-    def populate_trend_lines(self, df: DataFrame, interval: str, update: bool=False) -> list:
+    # def populate_trend_lines(self, df: DataFrame, interval: str, update: bool=False) -> list:
+    #
+    #     res, sup = self.res_trend, self.sup_trend
+    #     df = res.populate_to_df(df)
+    #     df = sup.populate_to_df(df)
+    #
+    #     return df
 
-        res, sup = self.res_trend, self.sup_trend
-        df = res.populate_to_df(df)
-        df = sup.populate_to_df(df)
-
-        return df
-
-    def update_trend_lines(self, df: DataFrame, interval: str) -> None:
+    def update_trend_lines(self, df: DataFrame, interval: str):
         """
         Updates this entity with amount and actual open/close rates.
         :param order: order retrieved by exchange.get_order()
         :return: None
         """
 
-        logger.info('Updating pair %s trend lines...', self.pair)
+        logger.info('Persistence update_trend_lines: Updating pair %s trend lines...', self.pair)
 
         # df = get_df(self.pair, interval)
-        print (interval)
+        # print (interval)
 
 
         interval_volat = {
@@ -403,7 +397,7 @@ class Pair(_DECL_BASE):
                     '1h':20,
                     '30m':100,
                     '5m':100,
-                    '1m':200}
+                    '1m':100}
 
         window = volat_window[interval]
         df['bb_exp'] = (df.bb_upperband.rolling(window=window).max() - df.bb_lowerband.rolling(window=window).min()) / df.bb_upperband.rolling(window=window).max() * interval_volat[interval]
@@ -413,14 +407,17 @@ class Pair(_DECL_BASE):
 
         new_trends = gentrends(self, df, pair=self.pair, charts=True, interval=interval)
         if len(new_trends)>0:
-            logger.info('Updating all trends for %s', self.pair)
-            prev_trends = Trend.query.filter(Trend.pair_id.is_(self.id)).all()
-            print (prev_trends)
-            for pt in prev_trends:
-                Trend.session.delete(pt)
-                cleanup()
+            logger.info('Persistence: update_trend_lines: Updating all trends for %s', self.pair)
+            prev_trends = Trend.query.filter_by(pair=self.pair, interval=interval).all()
+            self.res_trend = None
+            self.sup_trend = None
+            # print (prev_trends)
+            if prev_trends:
+                for pt in prev_trends:
+                    Trend.session.delete(pt)
+                    cleanup()
             for t in new_trends:
-                print(t)
+                # print(t)
                 ax = t['a'][0]
                 ay = t['a'][1]
                 ad = t['a'][2]
@@ -432,11 +429,11 @@ class Pair(_DECL_BASE):
                 #     logger.info('Updating trend a: %s | b: %s', a, b)
                 #     prev_trend.delete()
                 trend_obj = Trend(
-                    pair=self,
+                    pair=self.pair,
                     type = t['type'],
                     last = t['last'],
-                    max = t['max'],
-                    min= t['min'],
+                    max_trend = t['max'],
+                    min_trend = t['min'],
                     interval = t['interval'],
                     ax = ax,
                     ay = ay,
@@ -448,15 +445,18 @@ class Pair(_DECL_BASE):
                     conf_n = t['conf_n']
                 )
                 Trend.session.add(trend_obj)
-                # if t['max']:
-                #     self.res_trend = Trend.session
-                #     # print (self.res_trend)
-                # if t['min']:
-                #     self.sup_trend = Trend.session
-                #     # print (self.sup_trend)
+                # if t['max'] is 1:
+                #     self.res_trend = trend_obj.id
+                #     print (t['max'])
+                # if t['min'] is 1:
+                #     self.sup_trend = trend_obj.id
+                #     print (t['min'])
                 cleanup()
-        #
-        cleanup()
+        else:
+            print ('no trends')
+        # cleanup()
+        return self
+        # print (new_trends)
 
 
     def get_pivots(self) -> list:
@@ -504,12 +504,11 @@ class Trend(_DECL_BASE):
     __tablename__ = 'trends'
 
     id = Column(Integer, primary_key=True)
-    pair_id = Column(Integer, ForeignKey('pairs.id'))
-    pair = relationship("Pair", back_populates="trends")
+    pair = Column(String, nullable=False)
     type = Column(String, nullable=False)
     last = Column(Boolean, default=False)
-    max = Column(Boolean, default=False)
-    min = Column(Boolean, default=False)
+    max_trend = Column(Boolean, default=False)
+    min_trend = Column(Boolean, default=False)
     interval = Column(String, nullable=False, default='all')
     ax = Column(Float, nullable=False)
     ay = Column(Float, nullable=False)
@@ -520,19 +519,19 @@ class Trend(_DECL_BASE):
     slope = Column(Integer, nullable=False)
     conf_n = Column(Integer, nullable=False, default=0)
     update_date = Column(DateTime, nullable=False, default=datetime.utcnow)
-    trades_id = Column(Integer, ForeignKey('trades.id'))
-    trades_sup = relationship("Trade", back_populates="sup_trend")
-    trades_res = relationship("Trade", back_populates="res_trend")
+    # trades_id = Column(Integer, ForeignKey('trades.id'))
+    # trades_sup = Column(Integer, nullable=False)
+    # trades_res = Column(Integer, nullable=False)
     # trades_sup = relationship("Trade", backref="sup_trend")
     # trades_res = relationship("Trade", backref="res_trend")
 
     def __repr__(self):
         return 'Trend(pair={}, type={}, last={}, max={}, min={}, interval={}, a={}, b={}, slope={}, confirm_n={}, last update={})'.format(
-            self.pair.pair,
+            self.pair,
             self.type,
             self.last,
-            self.max,
-            self.min,
+            self.max_trend,
+            self.min_trend,
             self.interval,
             str([self.ax,self.ay]),
             str([self.bx,self.by]),
@@ -569,19 +568,20 @@ class Trend(_DECL_BASE):
             df_first_date = df.iloc[0].date
             diff_min = (df_first_date - ad).total_seconds() / 60.0
             d = np.arange(len(df) + diff_min)
+            # print (d)
             slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
             trend = polyval([slope,intercept],d)[-len(df):]
             trend_name = 'trend-'+str(ay)+'|'+str(by)
-            print ('different size dataframes')
-            print ('diff mins: ', diff_min)
-            print ('len df: ', len(df))
-            print ('len trend: ', len(trend))
+            # print ('different size dataframes')
+            # print ('diff mins: ', diff_min)
+            # print ('len df: ', len(df))
+            # print ('len trend: ', len(trend))
 
-        print (self)
-        print (self.max, self.min)
-        if self.max:
+        # print (self)
+        # print (self.max_trend, self.min_trend)
+        if self.max_trend:
             df.loc[:,'max'] = trend
-        elif self.min:
+        elif self.min_trend:
             df.loc[:,'min'] = trend
         else:
             df.loc[:,trend_name] = trend

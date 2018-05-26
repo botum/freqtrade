@@ -22,6 +22,7 @@ from freqtrade.strategy.resolver import StrategyResolver
 from freqtrade import constants
 from freqtrade.indicators import get_trend_lines, get_pivots, in_range
 from freqtrade.trends import gentrends, plot_trends
+from freqtrade.optimize import load_tickerdata_file, download_backtesting_testdata
 
 # ZigZag
 
@@ -34,42 +35,6 @@ from freqtrade.vendor.zigzag_hi_lo import *
 
 logger = logging.getLogger(__name__)
 
-def get_df(pair: str, interval: str) -> DataFrame:
-    """
-    Calculates current signal based several technical analysis indicators
-    :param pair: pair in format ANT/BTC
-    :param interval: Interval to use (in min)
-    :return: (Buy, Sell) A bool-tuple indicating buy/sell signal
-    """
-    print('interval : ',interval)
-
-
-    # ticker_hist = get_ticker_history(pair, interval)
-    ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
-#     print (ticker_hist)
-#     print (ticker_hist)
-    if not ticker_hist:
-        logger.warning('Empty ticker history for pair %s', pair)
-        return None
-
-    try:
-        dataframe = analyze.analyze_ticker(ticker_hist, pair, interval)
-    except ValueError as error:
-        logger.warning(
-            'Unable to analyze ticker for pair %s: %s',
-            pair,
-            str(error)
-        )
-        return None
-    except Exception as error:
-        logger.exception(
-            'Unexpected error when analyzing ticker for pair %s: %s',
-            pair,
-            str(error)
-        )
-        return None
-
-    return dataframe
 
 
 class SignalType(Enum):
@@ -92,6 +57,41 @@ class Analyze(object):
         """
         self.config = config
         self.strategy = StrategyResolver(self.config).strategy
+
+
+    def get_df(self, pair: str, interval: str) -> DataFrame:
+        """
+        returns dataframe full size from disk
+        """
+        print('interval : ',interval)
+
+
+        # ticker_hist = get_ticker_history(pair, interval)
+        ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
+    #     print (ticker_hist)
+    #     print (ticker_hist)
+        if not ticker_hist:
+            logger.warning('Empty ticker history for pair %s', pair)
+            return None
+
+        try:
+            dataframe = self.parse_ticker_dataframe(ticker_hist)
+        except ValueError as error:
+            logger.warning(
+                'Unable to analyze ticker for pair %s: %s',
+                pair,
+                str(error)
+            )
+            return None
+        except Exception as error:
+            logger.exception(
+                'Unexpected error when analyzing ticker for pair %s: %s',
+                pair,
+                str(error)
+            )
+            return None
+
+        return dataframe
 
     @staticmethod
     def parse_ticker_dataframe(ticker: list) -> DataFrame:
@@ -165,64 +165,116 @@ class Analyze(object):
 
 
         # df = gentrends(self, df, pair=pair, charts=False)
+        print (pair)
+        print ('''
 
+        ------------------------ Analyze Trends --------------------------------
+
+        ''')
         config = Configuration.get_config(self)
         # engine = create_engine('sqlite:///tradesv3.trends.sqlite')
         persistence.init(config)
 
-        print (pair)
-        print (len(df))
+        # print (pair)
+        # print (len(df))
+
+        update = False
+        chart = True
+        current_trade = None
+
+        if trade:
+            current_trade = Trade.query.filter(Trade.pair.is_(pair)).first()
+            print(current_trade)
 
         current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
 
-
         if current_pair == None:
-            pair_obj = Pair(
+            current_pair = Pair(
                 pair=pair
             )
-            Pair.session.add(pair_obj)
+            Pair.session.add(current_pair)
             persistence.cleanup()
-            current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+            # current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
 
-        print (current_pair)
+        # print (current_pair)
 
         # df = current_pair.populate_trend_lines(df, interval)
 
         if trade:
-            print ('-------------------- we are on a trade --------------------------------')
+            logger.info('-------------------- we are on a trade --------------------------------')
             res, sup = trade.res_trend, trade.sup_trend
+            # print(sup,res)
+            res = Trend.query.filter_by(id=res).first()
+            sup = Trend.query.filter_by(id=sup).first()
         else:
             res, sup = current_pair.res_trend, current_pair.sup_trend
-            print('first attempt: ', sup, res)
+            logger.info('Analyze: not in a trade / sup and res:  %i, %i', sup, res)
 
             if not (res and sup):
+                logger.info('Analyze: updating since there are no sup-res:  %i, %i', sup, res)
                 update = True
             else:
-                df = res.populate_to_df(df)
-                df = sup.populate_to_df(df)
-                if( df.iloc[-1]['close'] > df.iloc[-1]['max']) or (df.iloc[-1]['close'] < df.iloc[-1]['min']):
-                    logger.info('%s max or min off trends /////////////////////////////////////////////////////', current_pair.pair)
+                logger.info('Analyze: we\'ve got sup and res: %i, %i ', sup, res)
+
+
+                res = Trend.query.filter_by(id=res).first()
+                sup = Trend.query.filter_by(id=sup).first()
+
+                if res.interval is not interval:
                     update = True
+                else:
+                    df = res.populate_to_df(df)
+                    df = sup.populate_to_df(df)
+                    if chart:
+                        filename = 'chart_plots/' + interval + '-' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M') + '-live.png'
+                        plot_trends(df, filename)
+
+                    if( df.iloc[-1]['close'] > df.iloc[-1]['max']) or (df.iloc[-1]['close'] < df.iloc[-1]['min']):
+                        logger.info('%s max or min off trends /////////////////////////////////////////////////////', current_pair.pair)
+                        update = True
 
 
             if update == True:
-                current_pair.update_trend_lines(df, interval)
+                full_df = self.get_df(pair=pair, interval=interval)
+                full_df = self.populate_indicators(full_df)
+                logger.info('updating now from Analyze')
+                current_pair = current_pair.update_trend_lines(full_df, interval)
+                # print ('after update')
                 # print ('max tren: ', Trend.query.filter_by(max = True, pair_id=self.id, interval=interval).first())
-                current_pair.res_trend = Trend.query.filter_by(max = True, type = 'res', pair_id=current_pair.id, interval=interval).first()
-                # print (current_pair.res_trend)
-                # print ('min tren: ', Trend.query.filter_by(min = True, pair_id=current_pair.id, interval=interval).first())
-                current_pair.sup_trend = Trend.query.filter_by(min = True, type = 'sup', pair_id=current_pair.id, interval=interval).first()
-                # print (self.sup_trend)
-                persistence.cleanup()
-                current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
-                res, sup = current_pair.res_trend, current_pair.sup_trend
-                print(sup, res)
+                # persistence.cleanup()
+                # print ('new pair query')
+                # current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
 
-            df = res.populate_to_df(df)
-            df = sup.populate_to_df(df)
+                # debug
+                # print (current_pair.pair)
+                # print (current_pair.sup_trend)
+                # print (current_pair.res_trend)
+                # print ('min tren: ', Trend.query.filter_by(min_trend = True, pair=current_pair.pair, interval=interval).first())
+                # print (res, sup)
+
+                res = Trend.query.filter_by(max_trend = True, pair=current_pair.pair, interval=interval).first()
+                sup = Trend.query.filter_by(min_trend = True, pair=current_pair.pair, interval=interval).first()
+                current_pair.res_trend = res.id
+                current_pair.sup_trend = sup.id
+                # print(sup, res)
+
+                if chart:
+                    full_df = res.populate_to_df(full_df)
+                    full_df = sup.populate_to_df(full_df)
+                    filename_full = 'chart_plots/' + interval + '-' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-full.png'
+                    plot_trends(full_df, filename_full)
+
+
+            # res = Trend.query.filter_by(max_trend = True, type = 'res', pair=current_pair.id, interval=interval).first()
+            # sup = Trend.query.filter_by(min_trend = True, type = 'sup', pair=current_pair.id, interval=interval).first()
+
+            persistence.cleanup()
+
+        df = res.populate_to_df(df)
+        df = sup.populate_to_df(df)
 
             # print (df)
-        print('current pair: ', current_pair)
+        # print('current pair: ', current_pair)
 
         # print (df)
         # print (df)
@@ -255,8 +307,6 @@ class Analyze(object):
 
 #         dataframe['s1'] = df.filter(regex='trend-$', axis=1)[]
         # print (df.st, df.rt)
-        filename = 'chart_plots/' + interval + '-' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-backtesting.png'
-        plot_trends(df, filename)
 
         return df
 
@@ -324,7 +374,7 @@ class Analyze(object):
         :param interval: Interval to use (in min)
         :return: (Buy, Sell) A bool-tuple indicating buy/sell signal
         """
-        print('interval : ',interval)
+        # print('interval : ',interval)
         ticker_hist = get_ticker_history(pair, interval)
         if not ticker_hist:
             logger.warning('Empty ticker history for pair %s', pair)

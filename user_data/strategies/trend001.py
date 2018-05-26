@@ -55,7 +55,7 @@ class trend001(IStrategy):
     stoploss = -0.6
 
     # Optimal ticker interval for the strategy
-    ticker_interval = "1m"
+    ticker_interval = "5m"
 
     def populate_cycle_trend(self, dataframe: DataFrame) -> DataFrame:
 
@@ -286,7 +286,7 @@ class trend001(IStrategy):
                 # )
                 # &
                 (
-                (in_range(dataframe['close'],dataframe['min']*1.005, 0.005))
+                (in_range(dataframe['close'],dataframe['min']*1.01, 0.01))
                 &
                 (dataframe['max'] > dataframe['min']*1.05)
                 )
