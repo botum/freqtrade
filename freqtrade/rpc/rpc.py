@@ -42,7 +42,7 @@ class RPC(object):
         if self.freqtrade.state != State.RUNNING:
             return True, '*Status:* `trader is not running`'
         elif not trades:
-            return True, '*Status:* `no active trade`'
+            return True, '*Status:* `no active trade`', []
         else:
             result = []
             plot_urls = []
