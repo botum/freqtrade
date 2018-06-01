@@ -645,6 +645,7 @@ class FreqtradeBot(object):
         sup = Trend.query.filter_by(id=sup).first()
         interval = self.analyze.get_ticker_interval()
         full_df = self.analyze.get_df(pair, interval)
+        full_df = self.analyze.populate_indicators(full_df)
         full_df = res.populate_to_df(full_df)
         full_df = sup.populate_to_df(full_df)
         plot_trends(full_df, full_filename)

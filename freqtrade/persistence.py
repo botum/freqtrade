@@ -391,13 +391,14 @@ class Pair(_DECL_BASE):
                     '5m':1,
                     '1m':1}
 
-        prop = int(len(df)/100)
+        prop = int(len(df)/50)
         volat_window = {
                     '1d':10 ,
                     '1h':20,
                     '30m':100,
                     '5m':100,
-                    '1m':100}
+                    '1m':prop
+                    }
 
         window = volat_window[interval]
         df['bb_exp'] = (df.bb_upperband.rolling(window=window).max() - df.bb_lowerband.rolling(window=window).min()) / df.bb_upperband.rolling(window=window).max() * interval_volat[interval]
