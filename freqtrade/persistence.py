@@ -410,8 +410,8 @@ class Pair(_DECL_BASE):
         if len(new_trends)>0:
             logger.info('Persistence: update_trend_lines: Updating all trends for %s', self.pair)
             prev_trends = Trend.query.filter_by(pair=self.pair, interval=interval).all()
-            self.res_trend = None
-            self.sup_trend = None
+            # self.res_trend = None
+            # self.sup_trend = None
             # print (prev_trends)
             if prev_trends:
                 for pt in prev_trends:

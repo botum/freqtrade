@@ -294,6 +294,8 @@ class trend001(IStrategy):
                 |
                 (
                 (dataframe['close'] > dataframe['max']*1.01)
+                &
+                (dataframe['close'] < dataframe['max']*1.03)
                 )
                 # &
                 # (
