@@ -9,9 +9,12 @@ TICKER_INTERVAL = 5  # min
 HYPEROPT_EPOCH = 100  # epochs
 RETRY_TIMEOUT = 30  # sec
 DEFAULT_STRATEGY = 'DefaultStrategy'
+DEFAULT_DB_PROD_URL = 'sqlite:///tradesv3.sqlite'
+DEFAULT_DB_DRYRUN_URL = 'sqlite://'
 
 TICKER_INTERVAL_MINUTES = {
     '1m': 1,
+    '3m': 3,
     '5m': 5,
     '15m': 15,
     '30m': 30,
@@ -19,8 +22,10 @@ TICKER_INTERVAL_MINUTES = {
     '2h': 120,
     '4h': 240,
     '6h': 360,
+    '8h': 480,
     '12h': 720,
     '1d': 1440,
+    '3d': 4320,
     '1w': 10080,
 }
 
@@ -28,7 +33,8 @@ SUPPORTED_FIAT = [
     "AUD", "BRL", "CAD", "CHF", "CLP", "CNY", "CZK", "DKK",
     "EUR", "GBP", "HKD", "HUF", "IDR", "ILS", "INR", "JPY",
     "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PKR", "PLN",
-    "RUB", "SEK", "SGD", "THB", "TRY", "TWD", "ZAR", "USD"
+    "RUB", "SEK", "SGD", "THB", "TRY", "TWD", "ZAR", "USD",
+    "BTC", "ETH", "XRP", "LTC", "BCH", "USDT"
     ]
 
 # Required json-schema for user specified config
@@ -79,6 +85,7 @@ CONF_SCHEMA = {
             },
             'required': ['enabled', 'token', 'chat_id']
         },
+        'db_url': {'type': 'string'},
         'initial_state': {'type': 'string', 'enum': ['running', 'stopped']},
         'internals': {
             'type': 'object',
