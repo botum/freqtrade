@@ -22,7 +22,7 @@ from freqtrade.strategy.resolver import StrategyResolver, IStrategy
 from freqtrade import constants
 from freqtrade.indicators import get_trend_lines, get_pivots, in_range
 from freqtrade.trends import gentrends, plot_trends
-from freqtrade.optimize import load_tickerdata_file, download_backtesting_testdata
+from freqtrade.optimize import load_tickerdata_file, download_backtesting_testdata, load_data
 
 # ZigZag
 
@@ -67,7 +67,14 @@ class Analyze(object):
 
 
         # ticker_hist = get_ticker_history(pair, interval)
-        ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
+        # ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
+        ticker_hist = load_data(  # type: ignore # timerange will be refactored
+            'freqtrade/tests/testdata/',
+            pairs=pairs,
+            ticker_interval=interval,
+            refresh_pairs=True,
+            timerange=timerange
+        )
     #     print (ticker_hist)
     #     print (ticker_hist)
         if not ticker_hist:

@@ -285,10 +285,25 @@ class trend001(IStrategy):
                 # # (dataframe['low'] < dataframe['main_trend_min'])
                 # )
                 # &
+
+                # buy when close to the support trend
+                # (
+                # (in_range(dataframe['close'],dataframe['min']*1.001, 0.001))
+                # &
+                # (dataframe['max'] > dataframe['min']*1.05)
+                # )
+
+                # Buy with BB when bouncing from trend
                 (
-                (in_range(dataframe['close'],dataframe['min']*1.001, 0.001))
+                (dataframe['close'] > dataframe['min'])
                 &
-                (dataframe['max'] > dataframe['min']*1.05)
+                (dataframe['low'] <= dataframe['bb_lowerband'])
+                &
+                (in_range(dataframe['low'].rolling(window=500).min().shift(1),dataframe['min']*1.001, 0.001))
+                # &
+                # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
+                &
+                (dataframe['volume'] > (dataframe['volume'].rolling(window=10).mean().shift(1) * 1.5))
                 )
                 # buy breakout?
                 |
@@ -297,6 +312,7 @@ class trend001(IStrategy):
                 &
                 (dataframe['close'] < dataframe['max']*1.03)
                 )
+
                 # &
                 # (
                 # (dataframe['main_trend_max'] > dataframe['main_trend_min']*1.02)
@@ -359,11 +375,12 @@ class trend001(IStrategy):
                 # |
                 # (dataframe['close'] <= dataframe['trend_min'] * 0.95)
                 # &
-#                 (
-#                     (dataframe['close'].shift(1) > dataframe['bb_upperband'])
-#                     &
-#                     (dataframe['close'] <= dataframe['bb_upperband'] * 0.999)
-#                 )
+                (
+                    (dataframe['close'].shift(1) > dataframe['bb_upperband'])
+                    &
+                    (dataframe['close'] <= dataframe['bb_upperband'])
+                )
+                |
                 # (in_range(dataframe['close'], dataframe['rt'], 0.001))
                 # |
                 (dataframe['close'] >= dataframe['max']*0.999)

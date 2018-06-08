@@ -631,21 +631,21 @@ class FreqtradeBot(object):
         # Send the message
         self.rpc.send_msg(message)
 
-        filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-live-TRADE.png'
-        plot_trends(df, filename)
-        self.rpc.send_img(filename)
-        # print(filename)
-        # print ('-------------------- Printing full size chart and trends --------------------------------')
-        full_filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-full-TRADE.png'
-        res, sup = trade.res_trend, trade.sup_trend
-        res = Trend.query.filter_by(id=res).first()
-        sup = Trend.query.filter_by(id=sup).first()
-        interval = self.analyze.get_ticker_interval()
-        full_df = self.analyze.get_df(pair, interval)
-        full_df = self.analyze.populate_indicators(full_df)
-        full_df = res.populate_to_df(full_df)
-        full_df = sup.populate_to_df(full_df)
-        plot_trends(full_df, full_filename)
-        self.rpc.send_img(full_filename)
+        # filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-live-TRADE.png'
+        # plot_trends(df, filename)
+        # self.rpc.send_img(filename)
+        # # print(filename)
+        # # print ('-------------------- Printing full size chart and trends --------------------------------')
+        # full_filename = 'chart_plots/' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H-%M-%S') + '-full-TRADE.png'
+        # res, sup = trade.res_trend, trade.sup_trend
+        # res = Trend.query.filter_by(id=res).first()
+        # sup = Trend.query.filter_by(id=sup).first()
+        # interval = self.analyze.get_ticker_interval()
+        # full_df = self.analyze.get_df(pair, interval)
+        # full_df = self.analyze.populate_indicators(full_df)
+        # full_df = res.populate_to_df(full_df)
+        # full_df = sup.populate_to_df(full_df)
+        # plot_trends(full_df, full_filename)
+        # self.rpc.send_img(full_filename)
 
         Trade.session.flush()
