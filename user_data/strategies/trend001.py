@@ -24,7 +24,7 @@ class trend001(IStrategy):
 
     # Minimal ROI designed for the strategy
     minimal_roi = {
-        # "200":  0.001,
+        # "400":  0,
         # "120":  0.01,
         # "60":  0.02,
         # "15":  0.03,
@@ -45,10 +45,10 @@ class trend001(IStrategy):
         # "2":  0.03,
         # "1":  0.04,
         # "0":  0.05
-        # "30":  0.001,
-        # "20":  0.005,
-        # "10":  0.008,
-        # "0":  0.01
+        # "60":  0.001,
+        # "50":  0.005,
+        # "30":  0.008,
+        "0":  0.01
     }
 
     # Optimal stoploss designed for the strategy
@@ -236,7 +236,7 @@ class trend001(IStrategy):
         dataframe['blower'] = ta.BBANDS(dataframe, nbdevup=2, nbdevdn=2)['lowerband']
 
         # Bollinger bands
-        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=20, stds=1)
+        bollinger = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), window=100, stds=1.2)
         dataframe['bb_lowerband'] = bollinger['lower']
         dataframe['bb_middleband'] = bollinger['mid']
         dataframe['bb_upperband'] = bollinger['upper']
@@ -273,6 +273,15 @@ class trend001(IStrategy):
         :return: DataFrame with buy column
         """
 
+        dataframe['rsi'] = ta.RSI(dataframe, timeperiod=5)
+        rsiframe = DataFrame(dataframe['rsi']).rename(columns={'rsi': 'close'})
+        dataframe['emarsi'] = ta.EMA(rsiframe, timeperiod=5)
+        macd = ta.MACD(dataframe)
+        dataframe['macd'] = macd['macd']
+        dataframe['adx'] = ta.ADX(dataframe)
+        dataframe['tema'] = ta.TEMA(dataframe, timeperiod=9)
+        dataframe['ema5'] = ta.EMA(dataframe, timeperiod=5)
+
         dataframe.loc[
             (
                 (
@@ -288,30 +297,56 @@ class trend001(IStrategy):
 
                 # buy when close to the support trend
                 # (
-                # (in_range(dataframe['close'],dataframe['min']*1.001, 0.001))
+                # (dataframe['min'] < dataframe['close'].rolling(window=50).mean().shift(1))
+                # &
+                # dataframe['adx'].gt(20) &
+                # (in_range(dataframe['close'],dataframe['min']*1.01, 0.01))
                 # &
                 # (dataframe['max'] > dataframe['min']*1.05)
                 # )
 
-                # Buy with BB when bouncing from trend
+                # buy when close to the support line
                 (
-                (dataframe['close'] > dataframe['min'])
+                (dataframe['s1'] < dataframe['close'].rolling(window=30).mean().shift(1))
                 &
-                (dataframe['low'] <= dataframe['bb_lowerband'])
-                &
-                (in_range(dataframe['low'].rolling(window=500).min().shift(1),dataframe['min']*1.001, 0.001))
+                # dataframe['adx'].gt(20) &
+                (in_range(dataframe['close'],dataframe['s1']*1.001, 0.001))
                 # &
-                # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
-                &
-                (dataframe['volume'] > (dataframe['volume'].rolling(window=10).mean().shift(1) * 1.5))
+                # (dataframe['max'] > dataframe['min']*1.05)
                 )
+
+                # binh strategy
+                # (
+                # # (dataframe['close'] >= dataframe['min'])
+                # #   &
+                #   dataframe['adx'].gt(20) &
+                #   dataframe['emarsi'].le(40) &
+                #   dataframe['macd'].lt(0) &
+                #   dataframe['macd'].lt(dataframe['macd'].shift(1))
+                # )
+
+                # Buy with BB when bouncing from trend
+                # (
+                # (dataframe['close'] >= dataframe['min'])
+                # # (in_range(dataframe['close'],dataframe['min']*1.01, 0.01))
+                # # &
+                # # (dataframe['low'] <= dataframe['bb_lowerband']*1.001)
+                # &
+                # (in_range(dataframe['close'],dataframe['s1']*1.001, 0.001))
+                # #&
+                # # (in_range(dataframe['low'].rolling(window=500).min().shift(1),dataframe['min']*1.001, 0.001))
+                # # &
+                # # (dataframe['volume'] > (dataframe['volume'].shift(1) * 1.1))
+                # # &
+                # # (dataframe['volume'] > (dataframe['volume'].rolling(window=10).mean().shift(1) * 1.5))
+                # )
                 # buy breakout?
-                |
-                (
-                (dataframe['close'] > dataframe['max']*1.01)
-                &
-                (dataframe['close'] < dataframe['max']*1.03)
-                )
+                # |
+                # (
+                # (dataframe['close'] > dataframe['max']*1.01)
+                # &
+                # (dataframe['close'] < dataframe['max']*1.03)
+                # )
 
                 # &
                 # (
@@ -360,7 +395,7 @@ class trend001(IStrategy):
                 # |
                 # (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
                 # |
-                # (dataframe['close'] >= dataframe['r1'] * 0.999)
+                (dataframe['close'] >= dataframe['r1'] * 0.999)
                 # |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
@@ -375,15 +410,25 @@ class trend001(IStrategy):
                 # |
                 # (dataframe['close'] <= dataframe['trend_min'] * 0.95)
                 # &
-                (
-                    (dataframe['close'].shift(1) > dataframe['bb_upperband'])
-                    &
-                    (dataframe['close'] <= dataframe['bb_upperband'])
-                )
-                |
+                # (
+                #     (dataframe['close'].shift(1) > dataframe['bb_upperband'])
+                #     &
+                #     (dataframe['close'] <= dataframe['bb_upperband'])
+                # )
+                # (
+                #     (dataframe['close'] > dataframe['bb_upperband'])
+                # )
+                # |
                 # (in_range(dataframe['close'], dataframe['rt'], 0.001))
                 # |
-                (dataframe['close'] >= dataframe['max']*0.999)
+                # (
+                # dataframe['adx'].gt(25) &
+                # dataframe['macd'].gt(0) &
+                # dataframe['emarsi'].ge(70) &
+                # (dataframe['ema5'] <= dataframe['ema5'].shift(1))
+                # )
+                |
+                (dataframe['close'] >= dataframe['max']*0.99)
                 |
                 (dataframe['close'] <= dataframe['min'] * 0.95)
 

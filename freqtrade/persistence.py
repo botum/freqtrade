@@ -466,7 +466,7 @@ class Pair(_DECL_BASE):
         # print (new_trends)
 
 
-    def get_pivots(self) -> list:
+    def get_pivots(self, df: DataFrame) -> list:
         # Check if is time to update pivots
         # return self.update_pivots()
         if self.pivots_update_date:
@@ -474,7 +474,7 @@ class Pair(_DECL_BASE):
                 logger.info('%s\'s pivots outdated by (%s), go find\'em now!',
                                self.pair, (datetime.utcnow() - self.pivots_update_date).seconds // 60)
                 # print ('update pivots: ', self.pivots)
-                return self.update_pivots()
+                return self.update_pivots(df)
             else:
                 pivots = {'sup': self.supports,
                             'res': self.resistences}
@@ -482,7 +482,7 @@ class Pair(_DECL_BASE):
         else:
             return self.update_pivots()
 
-    def update_pivots(self) -> list:
+    def update_pivots(self, df: DataFrame) -> list:
         """
         Updates this entity with amount and actual open/close rates.
         :param order: order retrieved by exchange.get_order()
@@ -494,8 +494,8 @@ class Pair(_DECL_BASE):
         getcontext().prec = 8  # Bittrex do not go above 8 decimal
 
         # print (df)
-        supports = get_pivots(self.pair, piv_type='sup')
-        resistences = get_pivots(self.pair, piv_type='res')
+        supports = get_pivots(df, self.pair, piv_type='sup')
+        resistences = get_pivots(df, self.pair, piv_type='res')
         pivots = {'sup': supports,
                     'res': resistences}
         # print (pivots)

@@ -151,7 +151,7 @@ class Backtesting(object):
             use_sell_signal: act on sell-signal
         :return: DataFrame
         """
-        headers = ['date', 'buy', 'open', 'close', 'sell', 'min', 'max']
+        headers = ['date', 'buy', 'open', 'close', 'sell', 'min', 'max', 's1', 'r1', 's2', 'r2']
         processed = args['processed']
         max_open_trades = args.get('max_open_trades', 0)
         realistic = args.get('realistic', False)
@@ -164,7 +164,11 @@ class Backtesting(object):
             pair_data['buy'], pair_data['sell'] = 0, 0  # cleanup from previous run
 
             ticker_data = self.populate_sell_trend(
-                self.populate_buy_trend(self.populate_trend_lines(pair_data, pair, self.ticker_interval)))[headers].copy()
+                self.populate_buy_trend(
+                self.populate_pivots(
+                self.populate_trend_lines(
+                pair_data, pair, self.ticker_interval
+                ), pair, self.ticker_interval)))[headers].copy()
 
             # to avoid using data from future, we buy/sell with signal from previous candle
             ticker_data.loc[:, 'buy'] = ticker_data['buy'].shift(1)

@@ -132,7 +132,7 @@ def bruno_pivots(pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFram
     elif piv_type == 'res':
         df = df[(df['volume'] > df['volume'].rolling(window=10).mean() & df['close'] > df['open'])]
 
-def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv') -> pd.DataFrame:
+def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv', full_df: pd.DataFrame=None) -> pd.DataFrame:
     # print ('find_pivots')
 
     quantile = 0.01
@@ -194,22 +194,25 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     # elif piv_type == 'res':
     #     df = df[(df['high'] < df.iloc[-1]['close'] * 1.05)]
 
-    # print ('len df: ', len(df))
-    samples = len(df)
+    if len(full_df) <= len(df):
+        full_df = df
+    print ('len df: ', len(df))
+    print ('len full_df: ', len(full_df))
+    samples = len(full_df)
 
-    # print(len(df) * quantile)
-    if df.empty:
+    print(len(full_df) * quantile)
+    if full_df.empty:
         logger.warning('Empty dataframe for pair %s', pair)
         return []  # return False ?
-    elif not len(df) * quantile > 1:
-        print('dataframe too short: ', len(df))
-        samples = len(df) * 0.1
-    # df = df[(df['volume'] > df['volume'].rolling(window=10).mean())]
+    elif not len(full_df) * quantile > 1:
+        print('dataframe too short: ', len(full_df))
+        samples = len(full_df) * 0.1
+    # full_df = full_df[(full_df['volume'] > full_df['volume'].rolling(window=10).mean())]
 
 
-    data1 = df.as_matrix(columns=cols)
-    # highest = df.high.rolling(window=len(df)).max()
-    # lowest = df.low.rolling(window=len(df)).min()
+    data1 = full_df.as_matrix(columns=cols)
+    # highest = full_df.high.rolling(window=len(full_df)).max()
+    # lowest = full_df.low.rolling(window=len(full_df)).min()
 
     # print ('samples', samples)
     try:
@@ -243,7 +246,7 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     # print (piv_type)
     piv_clean = {}
 
-    # create supports
+    # create supports and resistances in short dataframe
 
     # print ('first item: ', pivots[0])
     # print (pivots)

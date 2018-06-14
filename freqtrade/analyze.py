@@ -70,13 +70,13 @@ class Analyze(object):
         # ticker_hist = load_tickerdata_file('freqtrade/tests/testdata/', pair, interval)
         ticker_hist = load_data(  # type: ignore # timerange will be refactored
             'freqtrade/tests/testdata/',
-            pairs=pairs,
+            pairs=[pair],
             ticker_interval=interval,
-            refresh_pairs=True,
-            timerange=timerange
-        )
-    #     print (ticker_hist)
-    #     print (ticker_hist)
+            refresh_pairs=True
+        )[pair]
+        #
+        # print (ticker_hist[pair])
+        # print (len(ticker_hist))
         if not ticker_hist:
             logger.warning('Empty ticker history for pair %s', pair)
             return None
@@ -318,7 +318,7 @@ class Analyze(object):
 
         return df
 
-    def populate_pivots(self, dataframe: DataFrame, pair: str) -> DataFrame:
+    def populate_pivots(self, dataframe: DataFrame, pair: str, interval: int, trade: Trade=None) -> DataFrame:
         """
         Adds several different TA indicators to the given DataFrame
 
@@ -326,15 +326,49 @@ class Analyze(object):
         you are using. Let uncomment only the indicator you are using in your strategies
         or your hyperopt configuration, otherwise you will waste your memory and CPU usage.
         """
-        # print (dataframe)
+        # print (dataframe.head)
         # persistence.init(self.config)
         # exchange.init(self.config)
-        # pair_obj = Pair.query.filter(Pair.pair.is_(_pair)).first()
-        #
-        # dataframe = pair_obj.get_pivots(dataframe)
+        # pair_obj = Pair.query.filter(Pair.pair.is_(pair)).first()
 
-        # dataframe = get_pivots(dataframe, pair, piv_type='sup')
-        # dataframe = get_pivots(dataframe, pair, piv_type='res')
+        print ('''
+
+        ------------------------ Analyze Pivots --------------------------------
+
+        ''')
+        config = Configuration.get_config(self)
+        # engine = create_engine('sqlite:///tradesv3.trends.sqlite')
+        persistence.init(config)
+
+        # print (pair)
+        # print (len(df))
+
+        # update = False
+        # chart = True
+        # current_trade = None
+        #
+        # if trade:
+        #     current_trade = Trade.query.filter(Trade.pair.is_(pair)).first()
+        #     print(current_trade)
+
+        current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+
+        if current_pair == None:
+            current_pair = Pair(
+                pair=pair
+            )
+            Pair.session.add(current_pair)
+            persistence.cleanup()
+            # current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
+
+        # dataframe = current_pair.get_pivots(dataframe)
+
+        full_df = self.get_df(pair=pair, interval=interval)
+        full_df = self.populate_indicators(full_df)
+
+        dataframe = get_pivots(dataframe, pair, piv_type='sup', full_df=full_df)
+        dataframe = get_pivots(dataframe, pair, piv_type='res', full_df=full_df)
+        # print (dataframe.head)
 
         return dataframe
 
@@ -369,7 +403,7 @@ class Analyze(object):
         """
         dataframe = self.parse_ticker_dataframe(ticker_history)
         dataframe = self.populate_indicators(dataframe)
-        # dataframe = self.populate_pivots(dataframe, pair)
+        dataframe = self.populate_pivots(dataframe, pair, interval, trade)
         dataframe = self.populate_trend_lines(dataframe, pair, interval, trade)
         dataframe = self.populate_buy_trend(dataframe)
         dataframe = self.populate_sell_trend(dataframe)

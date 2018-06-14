@@ -4,7 +4,7 @@
     "stake_amount": 0.1,
     "fiat_display_currency": "USD",
     "dry_run": true,
-    "db_url": "asdf",
+    "db_url": "sqlite://",
     "unfilledtimeout": 600,
     "bid_strategy": {
         "ask_last_balance": 0.01
@@ -13,10 +13,13 @@
         "name": "binance",
         "key": "",
         "secret": "",
-        "pair_whitelist_": [
-          "ADA/BTC"
+        "pair_whitelist": [
+          "ADA/BTC",
+          "ETH/BTC",
+          "ZIL/BTC",
+          "TRX/BTC"
       ],
-      "pair_whitelist": [
+      "pair_whitelist_": [
         "ETH/BTC",
         "ZIL/BTC",
         "TRX/BTC",

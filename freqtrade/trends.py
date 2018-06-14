@@ -108,12 +108,12 @@ def plot_trends(df, filename: str=None):
 
 
     # print(plt)
+    plot_pivots(df.close.values, df.low.values, df.high.values, pivots)
 
     plt.savefig(filename)
     plt.close()
     df['date'] = df['old_date']
     # df.reset_index()
-    # plot_pivots(df.close.values, df.low.values, df.high.values, pivots)
     # legend(['pivots','trend', 'close'])
     # plt.show()
 

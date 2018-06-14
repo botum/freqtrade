@@ -23,7 +23,7 @@ from freqtrade.fiat_convert import CryptoToFiatConverter
 from freqtrade.persistence import Trade, Pair, Trend
 from freqtrade.rpc.rpc_manager import RPCManager
 from freqtrade.state import State
-from freqtrade.trends import plot_trends
+from freqtrade.trends import plot_trends, plot_pivots
 
 logger = logging.getLogger(__name__)
 
