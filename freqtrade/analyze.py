@@ -247,19 +247,6 @@ class Analyze(object):
                 full_df = self.populate_indicators(full_df)
                 logger.info('updating now from Analyze')
                 current_pair = current_pair.update_trend_lines(full_df, interval)
-                # print ('after update')
-                # print ('max tren: ', Trend.query.filter_by(max = True, pair_id=self.id, interval=interval).first())
-                # persistence.cleanup()
-                # print ('new pair query')
-                # current_pair = Pair.query.filter(Pair.pair.is_(pair)).first()
-
-                # debug
-                # print (current_pair.pair)
-                # print (current_pair.sup_trend)
-                # print (current_pair.res_trend)
-                # print ('min tren: ', Trend.query.filter_by(min_trend = True, pair=current_pair.pair, interval=interval).first())
-                # print (res, sup)
-
                 res = Trend.query.filter_by(max_trend = True, pair=current_pair.pair, interval=interval).first()
                 sup = Trend.query.filter_by(min_trend = True, pair=current_pair.pair, interval=interval).first()
                 current_pair.res_trend = res.id
@@ -272,9 +259,6 @@ class Analyze(object):
                     filename_full = 'chart_plots/' + interval + '-' + pair.replace('/', '-') + datetime.utcnow().strftime('-%m-%d-%Y-%H') + '-full.png'
                     plot_trends(full_df, filename_full)
 
-
-            # res = Trend.query.filter_by(max_trend = True, type = 'res', pair=current_pair.id, interval=interval).first()
-            # sup = Trend.query.filter_by(min_trend = True, type = 'sup', pair=current_pair.id, interval=interval).first()
 
             persistence.cleanup()
 

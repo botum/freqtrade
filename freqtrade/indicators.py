@@ -1,21 +1,10 @@
-# from plotly import __version__
-# from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
-#
-# import plotly.plotly as py
-# import plotly.graph_objs as go
-# from plotly.graph_objs import Scatter, Figure, Layout
-# from plotly.tools import FigureFactory as FF
-
 import numpy as np
 import pandas as pd
 import logging
-# import scipy
-# import peakutils
 
 from datetime import datetime, timedelta
 
 import freqtrade.vendor.qtpylib.indicators as qtpylib
-# from freqtrade.persistence import *
 import freqtrade.persistence
 
 from sqlalchemy import (Boolean, Column, DateTime, Float, Integer, String,
@@ -29,14 +18,11 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 
 from freqtrade.exchange import get_ticker_history
 
-# from freqtrade.analyze import Analyze
 
 import scripts.trendy_2 as trendy
 from scripts import cactix
 
 from pandas import Series
-
-# from zigzag import *
 
 logger = logging.getLogger('freqtrade')
 
@@ -96,49 +82,6 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
         gap = 0.96
         interval = 1
 
-    # if 'USDT' in pair:
-    #     if piv_type == 'sup':
-    #         quantile = 0.01
-    #         cols = ['low', 'high']
-    #         gap = 1.05
-    #         interval = 60
-    #     elif piv_type == 'res':
-    #         quantile = 0.01
-    #         cols = ['high', 'low']
-    #         gap = 0.95
-    #         interval = 1
-
-    # ticker_hist = get_ticker_history(pair, interval)
-    # if not ticker_hist:
-    #     logger.warning('Empty ticker history for pair %s', pair)
-    #     return []  # return False ?
-    #
-    # try:
-    #     dataframe = parse_ticker_dataframe(ticker_hist)
-    # except ValueError as ex:
-    #     logger.warning('Unable to analyze ticker for pair %s: %s', pair, str(ex))
-    #     return []  # return False ?
-    # except Exception as ex:
-    #     logger.exception('Unexpected error when analyzing ticker for pair %s: %s', pair, str(ex))
-    #     return []  # return False ?
-    #
-    # df = dataframe
-    # print ('len df: ', len(df))
-    # print ('quantile: ', quantile, type(quantile))
-    # print ('bandwidth: ', int(len(df)) * quantile)
-
-    # if piv_type == 'sup':
-    #     # df = df[df['low'].value_counts()[df['low']] >= 3]
-    #     df = df[(df['volume'] > df['volume'].rolling(window=10).mean() * 0.9) & (df['close'] < df['open'])]
-    # elif piv_type == 'res':
-    #     df = df[(df['volume'] > df['volume'].rolling(window=5).mean()) & (df['close'] > df['open'])]
-
-    # if piv_type == 'sup':
-    #     # df = df[df['low'].value_counts()[df['low']] >= 3]
-    #     df = df[(df['low'] > df.iloc[-1]['close'] * 0.95)]
-    # elif piv_type == 'res':
-    #     df = df[(df['high'] < df.iloc[-1]['close'] * 1.05)]
-
     if len(full_df) <= len(df):
         full_df = df
     print ('len df: ', len(df))
@@ -152,14 +95,7 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     elif not len(full_df) * quantile > 1:
         print('dataframe too short: ', len(full_df))
         samples = len(full_df) * 0.1
-    # full_df = full_df[(full_df['volume'] > full_df['volume'].rolling(window=10).mean())]
-
-
     data1 = full_df.as_matrix(columns=cols)
-    # highest = full_df.high.rolling(window=len(full_df)).max()
-    # lowest = full_df.low.rolling(window=len(full_df)).min()
-
-    # print ('samples', samples)
     try:
         bandwidth1 = estimate_bandwidth(data1, quantile=quantile, n_samples=samples)
         ms1 = MeanShift(bandwidth=bandwidth1, bin_seeding=True)
@@ -168,7 +104,6 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
         logger.exception('Unexpected error when analyzing ticker pivots for pair %s: %s', pair, str(ex))
         return []  # return False ?
 
-    #Calculate Support/Resistance
     pivots = []
     # print ('labels', ms1.labels_)
     for k in range(len(np.unique(ms1.labels_))):
@@ -181,50 +116,27 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
                 pivots.append(min(values))
                 pivots.append(max(values))
 
-    # print (pivots[0])
     pivots =  [ float(x) for x in pivots ]
 
-    # print ("count pivots:", len(pivots))
-
     pivots = sorted(pivots)
-    # print ("pivots:", pivots)
-    # print (piv_type)
     piv_clean = {}
 
-    # create supports and resistances in short dataframe
-
-    # print ('first item: ', pivots[0])
-    # print (pivots)
     if piv_type == 'sup':
         supports = []
         supports.append(pivots[0])
         for i in range(1, len(pivots)):
-            # print ('for: ', i, pivots[i])
-            # print ('for: ', i, piv_clean[-1] * gap)
             if pivots[i] >= (supports[-1] * gap):
-                # print (pivots[i])
                 supports.append(pivots[i])
-            # print ('supports: ', supports)
         piv_clean['sup'] = supports
         def set_sup(row):
-            # print (row)
             supports = sorted(piv_clean['sup'], reverse=True)
-            # print (piv_clean['sup'])
             for sup in supports:
-                # print ('sup: ', sup, 'low: ', row['low'])
-                # print (row["low"] >= sup * 0.98)
                 if row["low"] >= sup:
-                    # print ('bingo: ', sup)
                     return sup
         def set_sup2(row):
-            # print (row)
-            # print (piv_clean['sup'])
             supports = sorted(piv_clean['sup'], reverse=True)
             for sup in supports:
-                # print ('sup: ', sup, 'low: ', row['low'])
-                # print (row["low"] >= sup * 0.98)
                 if row["low"] >= sup and sup < row['s1'] :
-                    # print ('bingo: ', sup)
                     return sup
         df = df.assign(s1=df.apply(set_sup, axis=1))
         df = df.assign(s2=df.apply(set_sup2, axis=1))
@@ -234,32 +146,18 @@ def get_pivots(df: pd.DataFrame, pair: str, interval: int=1, piv_type: str='piv'
     if piv_type == 'res':
         resistances = sorted(pivots, reverse=True)
         resistances.append(pivots[0])
-        # print (piv_clean[-1])
-        # print (pivots)
-        # print ('first item: ', pivots[0])
-        # print ('last item: ', pivots[-1])
         for i in range(1, len(pivots)):
-            # print('last piv_clean', resistances[-1] * gap)
-            # print('current pivot', pivots[i])
-            # if i == 1:
-                # print ('iter 1', resistances[-i])
             if pivots[i] <= (resistances[-1] * gap):
                 resistances.append(pivots[i])
-                # print('added', pivots[i])
         piv_clean['res'] = resistances
         def set_res(row):
             res = sorted(piv_clean['res'])
-            # res.append(piv_clean['sup'])
             for r in res:
-                # print ('res: ', row["s1"] * 1.01, res)
-                #  and res >= row["s1"] * 1.02
                 if row["high"] <= r and r >= row["s1"] * 1.02:
                     return r
         def set_res2(row):
             res = sorted(piv_clean['res'])
-            # res.append(piv_clean['sup'])
             for r in res:
-                # print ('res: ', row["s1"] * 1.01, res)
                 if row["high"] <= r and row["r1"] < r and r >= row["s1"] * 1.02:
                     return r
         df = df.assign(r1=df.apply(set_res, axis=1))

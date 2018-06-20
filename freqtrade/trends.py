@@ -39,22 +39,12 @@ def plot_pivots(X, L, H, pivots):
     pass
 
 def plot_trends(df, filename: str=None):
-
-    # fig, ax = plt.subplots()
-    # plt.xlim(0, len(df.close))
-    # plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
-
     plt.figure(num=0, figsize=(20,10))
     df['old_date'] = df['date']
     to_datetime(df['date'])
     df.set_index(['date'],inplace=True)
-    # df.plot(x_compat=True)
     plt.plot(df.index, df['max'], 'r', label='resistance trend', linewidth=2)
     plt.plot(df.index, df['min'], 'g', label='support trend', linewidth=2)
-
-    # plt.plot(df.index, df['st'], 'r', label='resistance trend', linewidth=2, alpha=0.5)
-    # plt.plot(df.index, df['rt'], 'g', label='support trend', linewidth=2, alpha=0.5)
-
     plt.plot(df.high, 'r', alpha=0.5)
     plt.plot(df.close, 'k', alpha=0.5)
     plt.plot(df.low, 'g', alpha=0.5)
@@ -62,60 +52,20 @@ def plot_trends(df, filename: str=None):
     plt.plot(df.bb_lowerband, 'b', alpha=0.5, linewidth=2)
     plt.plot(df.bb_upperband, 'b', alpha=0.5, linewidth=2)
 
-    pivot = [col for col in df if col.startswith('trend-')]
-    # support = df[df['ids'].str.contains('ball', na = False)]
-    # print(pivot)
-    # print (pivots['sup'])
-    for piv in pivot:
-        plt.plot(df.index, df[piv], 'k', label='support trend', alpha=0.5, linewidth=1)
-
-    # macd = go.Scattergl(x=data['date'], y=data['macd'], name='MACD')
-    # macdsignal = go.Scattergl(x=data['date'], y=data['macdsignal'], name='MACD signal')
-    # volume = go.Bar(x=data['date'], y=data['volume'], name='Volume')
-
-    # plot_pivots(df.close.values, df.low.values, df.high.values, df.pivots.values)
+    trends = [col for col in df if col.startswith('trend-')]
+    for t in trends:
+        plt.plot(df.index, df[t], 'k', label='trend', alpha=0.5, linewidth=1)
 
     plt.xlim(df.index[0], df.index[-1])
     plt.ylim(df.low.min()*0.99, df.high.max()*1.01)
     plt.xticks(rotation='vertical')
 
-
-    # print(pair)
     if not filename:
         filename = 'chart_plots/' +  interval + '-' + 'UNKNOWN-PAIR' + datetime.utcnow().strftime('-%m-%d-%Y-%H') + str(len(df)) + '.png'
-    # print('saving file: ', filename)
-
-    # df.plot(x_compat=True)
-
-
-    # ax = plt.gca()
-    # # seclocator = mdates.SecondLocator(bysecond=[20, 40])
-    # minlocator = mdates.MinuteLocator(byminute=range(1440))  # range(60) is the default
-    #
-    # # seclocator.MAXTICKS  = 40000
-    # minlocator.MAXTICKS  = 40000
-    #
-    # # majorFmt = mdates.DateFormatter('%Y-%m-%d, %H:%M:%S')
-    # minorFmt = mdates.DateFormatter('%H:%M:%S')
-    #
-    # # ax.xaxis.set_major_locator(minlocator)
-    # # ax.xaxis.set_major_formatter(majorFmt)
-    # # plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
-    #
-    # ax.xaxis.set_minor_locator(minlocator)
-    # ax.xaxis.set_minor_formatter(minorFmt)
-    # plt.setp(ax.xaxis.get_minorticklabels(), rotation=90)
-
-
-    # print(plt)
-    plot_pivots(df.close.values, df.low.values, df.high.values, pivots)
 
     plt.savefig(filename)
     plt.close()
     df['date'] = df['old_date']
-    # df.reset_index()
-    # legend(['pivots','trend', 'close'])
-    # plt.show()
 
 def get_tests(df, trend_name, pt, first):
 
@@ -190,7 +140,7 @@ def gentrends(self, df, interval: int, charts=False, pair='default_filename_plot
                 t = df.index[h.index[i]:]
                 slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
                 trend_next_wave = polyval([slope,intercept],t)
-                trend_name = 't_r|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
+                trend_name = 'trend-|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
                 df.loc[h.index[i]:,trend_name] = trend_next_wave
                 trend_tests = get_tests(df, trend_name, 'res', False)
                 trend = {'name':trend_name,
@@ -251,7 +201,7 @@ def gentrends(self, df, interval: int, charts=False, pair='default_filename_plot
                 t = df.index[l.index[i]:]
                 slope, intercept, r_value, p_value, std_err = stats.linregress([ax, bx], [ay, by])
                 trend_next_wave = polyval([slope,intercept],t)
-                trend_name = 't_s|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
+                trend_name = 'trend-|'+str(ax)+'|'+str(ay)+'|'+str(bx)+'|'+str(by)
                 df.loc[l.index[i]:,trend_name] = trend_next_wave
                 trend_tests = get_tests(df, trend_name, 'sup', False)
                 trend = {

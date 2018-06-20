@@ -452,19 +452,10 @@ class Pair(_DECL_BASE):
                     conf_n = t['conf_n']
                 )
                 Trend.session.add(trend_obj)
-                # if t['max'] is 1:
-                #     self.res_trend = trend_obj.id
-                #     print (t['max'])
-                # if t['min'] is 1:
-                #     self.sup_trend = trend_obj.id
-                #     print (t['min'])
                 cleanup()
         else:
             print ('no trends')
-        # cleanup()
         return self
-        # print (new_trends)
-
 
     def get_pivots(self, df: DataFrame) -> list:
         # Check if is time to update pivots
