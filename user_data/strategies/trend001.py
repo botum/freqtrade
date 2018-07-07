@@ -395,7 +395,7 @@ class trend001(IStrategy):
                 # |
                 # (dataframe['close'] >= dataframe['main_trend_max'] * 0.99)
                 # |
-                (dataframe['close'] >= dataframe['r1'] * 0.999)
+                # (dataframe['close'] >= dataframe['r1'] * 0.999)
                 # |
                 # (dataframe['close'] >= dataframe['trend_max'] * 0.99)
                 # |
@@ -427,10 +427,10 @@ class trend001(IStrategy):
                 # dataframe['emarsi'].ge(70) &
                 # (dataframe['ema5'] <= dataframe['ema5'].shift(1))
                 # )
-                |
+                # |
                 (dataframe['close'] >= dataframe['max']*0.99)
                 |
-                (dataframe['close'] <= dataframe['min'] * 0.95)
+                (dataframe['close'] <= dataframe['min'] * 0.90)
 
             ),
             'sell'] = 1
